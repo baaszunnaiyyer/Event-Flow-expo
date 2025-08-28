@@ -32,6 +32,11 @@ export type Event = {
   created_at: string;
   updated_at: string;
   creator: Creator;
+  is_recurring: boolean;
+  frequency?: "Daily" | "Weekly" | "Monthly" | "Yearly";
+  interval?: number;
+  by_day?: string[];
+  until?: string | null;
 }
 
 export type Request = {
@@ -42,3 +47,60 @@ export type Request = {
   datetime?: string;
   [key: string]: any;
 };
+
+export type Team = {
+  team_id : string,
+  team_name : string,
+  team_description : string,
+  joined_at : string
+}
+
+export type Branch = { 
+  branch_id : string;
+  team_id : string;
+  parent_branch_id : string;
+  branch_name: string;
+  branch_description : string;
+  team : Team
+}
+
+
+export type TeamRequest = {
+  request_id : string;
+  request_type : string;
+  status : string;
+  added_at : string;
+  index: number;
+  branch : Branch | null;
+  sender : Creator;
+}
+
+export type EventMembers = {
+  event_id : string;
+  user_id : string;
+  seen :  boolean
+}
+
+export type EventRequest = {
+  event_id: string;
+  user_id: string;
+  status: string;
+  respond_at: string;
+};
+
+export type TeamMember = {
+  team_id : string,
+  user_id :  string,
+  role : string
+}
+
+export type SchemaBranch = {
+  branch_id : string;
+  team_id : string;
+  parent_branch_id : string;
+  branch_name: string;
+  branch_description : string;
+  created_by : string;
+  created_at : string;
+  updated_at : string;
+}

@@ -6,6 +6,7 @@ import { API_BASE_URL } from "@/utils/constants";
 import { Event, Request } from "@/types/model";
 import { happensToday, getMonday } from "@/utils/Dashboard/dateHelper";
 import { generateWeeklyChartData } from "@/utils/Dashboard/chartHealper";
+import { getAllEvents, insertEvent } from "@/utils/db/Events";
 
 export function useDashboardData() {
   const [loading, setLoading] = useState(true);
@@ -94,6 +95,15 @@ export function useDashboardData() {
           const eventsData: Event[] = await eventsRes.json();
           const eventRequestsData: Request[] = await eventReqRes.json();
           const teamRequestsData: Request[] = await teamReqRes.json();
+
+          await insertEvent(eventsData[0])
+
+          console.log(eventsData);
+
+          const result = await getAllEvents()
+
+          console.log(result.data);
+          
 
           await AsyncStorage.setItem("cachedEvents", JSON.stringify(eventsData));
           await AsyncStorage.setItem("cachedEventRequests", JSON.stringify(eventRequestsData));

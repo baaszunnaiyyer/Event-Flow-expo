@@ -5,7 +5,9 @@ export const db = SQLite.openDatabaseSync("app.db");
 
 // Run this on app startup
 export async function initDatabase() {
-  // Enums will be stored as TEXT
+  // ✅ Enable foreign keys (important: must be ON for constraints to work)
+  await db.execAsync("PRAGMA foreign_keys = ON;");
+
   await db.execAsync(`
     -- USERS
     CREATE TABLE IF NOT EXISTS users (
@@ -20,7 +22,6 @@ export async function initDatabase() {
       availability_day_of_week TEXT,
       availability_start_time TEXT,
       availability_end_time TEXT,
-      password TEXT,
       timezone TEXT,
       created_at TEXT,
       updated_at TEXT,
@@ -40,7 +41,9 @@ export async function initDatabase() {
       team_id TEXT,
       user_id TEXT,
       role TEXT,
-      PRIMARY KEY (team_id, user_id)
+      PRIMARY KEY (team_id, user_id),
+      FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     );
 
     -- BRANCHES
@@ -52,7 +55,10 @@ export async function initDatabase() {
       branch_description TEXT,
       created_by TEXT,
       created_at TEXT,
-      updated_at TEXT
+      updated_at TEXT,
+      FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE,
+      FOREIGN KEY (parent_branch_id) REFERENCES branches(branch_id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(user_id)
     );
 
     -- BRANCH MEMBERS
@@ -62,7 +68,10 @@ export async function initDatabase() {
       user_id TEXT,
       role TEXT,
       joined_at TEXT,
-      PRIMARY KEY (branch_id, user_id, team_id)
+      PRIMARY KEY (branch_id, user_id, team_id),
+      FOREIGN KEY (branch_id) REFERENCES branches(branch_id) ON DELETE CASCADE,
+      FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     );
 
     -- EVENTS
@@ -77,22 +86,28 @@ export async function initDatabase() {
       is_recurring INTEGER,
       frequency TEXT,
       interval INTEGER,
-      by_day TEXT, -- store array as comma-separated string
+      by_day TEXT,
       until TEXT,
+      isAdmin BOOLEAN,
       location TEXT,
       created_by TEXT,
       team_id TEXT,
       branch_id TEXT,
       created_at TEXT,
-      updated_at TEXT
+      updated_at TEXT,
+      FOREIGN KEY (team_id) REFERENCES teams(team_id) ON DELETE CASCADE,
+      FOREIGN KEY (branch_id) REFERENCES branches(branch_id) ON DELETE CASCADE,
+      FOREIGN KEY (created_by) REFERENCES users(user_id)
     );
 
     -- EVENT MEMBERS
     CREATE TABLE IF NOT EXISTS event_members (
       event_id TEXT,
       user_id TEXT,
-      seen INTEGER,
-      PRIMARY KEY (event_id, user_id)
+      seen BOOLEAN,
+      PRIMARY KEY (event_id, user_id),
+      FOREIGN KEY (event_id) REFERENCES events(event_id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     );
 
     -- EVENT REQUESTS
@@ -101,7 +116,9 @@ export async function initDatabase() {
       user_id TEXT,
       status TEXT,
       respond_at TEXT,
-      PRIMARY KEY (event_id, user_id)
+      PRIMARY KEY (event_id, user_id),
+      FOREIGN KEY (event_id) REFERENCES events(event_id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE
     );
 
     -- JOIN REQUESTS
@@ -112,7 +129,10 @@ export async function initDatabase() {
       request_type TEXT,
       status TEXT,
       added_at TEXT,
-      branch_id TEXT
+      branch_id TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+      FOREIGN KEY (sent_by) REFERENCES users(user_id),
+      FOREIGN KEY (branch_id) REFERENCES branches(branch_id) ON DELETE CASCADE
     );
 
     -- CONTACTS
@@ -120,7 +140,9 @@ export async function initDatabase() {
       user_id TEXT,
       contact_user_id TEXT,
       added_at TEXT,
-      PRIMARY KEY (user_id, contact_user_id)
+      PRIMARY KEY (user_id, contact_user_id),
+      FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+      FOREIGN KEY (contact_user_id) REFERENCES users(user_id) ON DELETE CASCADE
     );
   `);
 }
