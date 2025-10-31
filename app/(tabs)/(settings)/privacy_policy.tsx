@@ -60,7 +60,7 @@ const PrivacyPolicyScreen = () => {
 
         <Text style={styles.paragraph}>
           For questions or concerns, contact:{" "}
-          <Text style={styles.bold}>support@eventapp.com</Text>
+          <Text style={styles.bold}>baaszunnaiyyer@gmail.com</Text>
         </Text>
       </ScrollView>
     </SafeAreaView>

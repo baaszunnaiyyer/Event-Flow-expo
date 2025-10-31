@@ -1,13 +1,18 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, AnyActionArg } from "react";
 import { useFocusEffect } from "@react-navigation/native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "@/utils/constants";
-import { Event, Request } from "@/types/model";
-import { happensToday, getMonday } from "@/utils/Dashboard/dateHelper";
+import { Creator, Event, Request, Team, TeamRequest } from "@/types/model";
+import { happensToday, getMonday, getAllowedWeekdays } from "@/utils/Dashboard/dateHelper";
 import { generateWeeklyChartData } from "@/utils/Dashboard/chartHealper";
-import { getAllEvents, insertEvent } from "@/utils/db/Events";
+import { db } from "@/utils/db/schema";
+import { syncTable, upsertTable } from "@/utils/db/SyncDB";
+import { GetAllTeamRequest } from "@/utils/db/Requestes";
+import { getJoinedEvents, syncEventsWithNestedData } from "@/utils/db/Events";
+import { SyncTeamRequstWithNestedData } from "@/utils/db/teams";
+import { queueDB } from "@/utils/db/DatabaseQueue";
 
+// 🟢 Main Hook
 export function useDashboardData() {
   const [loading, setLoading] = useState(true);
   const [todayEvents, setTodayEvents] = useState<Event[]>([]);
@@ -22,7 +27,7 @@ export function useDashboardData() {
       const processData = (
         eventsData: Event[],
         eventRequestsData: Request[],
-        teamRequestsData: Request[]
+        teamRequestsData: TeamRequest[]
       ) => {
         const now = new Date();
         const upcoming: Event[] = [];
@@ -41,7 +46,6 @@ export function useDashboardData() {
         setPreviousEvents(previous);
         setEventRequests(eventRequestsData);
         setTeamRequests(teamRequestsData);
-
         setTodayEvents(eventsData.filter((e) => happensToday(e)));
 
         const earliestEventDate = eventsData.length
@@ -64,52 +68,68 @@ export function useDashboardData() {
       };
 
       const loadCachedData = async () => {
-        const cachedEvents = await AsyncStorage.getItem("cachedEvents");
-        const cachedEventRequests = await AsyncStorage.getItem("cachedEventRequests");
-        const cachedTeamRequests = await AsyncStorage.getItem("cachedTeamRequests");
+        const events = await getJoinedEvents();
+        const eventReqs = await db.getAllAsync<Event>("SELECT * FROM events as e  WHERE EXISTS (SELECT 1 FROM event_requests as er WHERE e.event_id = er.event_id);");
+        const teamReqs = await GetAllTeamRequest()        
 
-        if (cachedEvents && cachedEventRequests && cachedTeamRequests) {
-          processData(
-            JSON.parse(cachedEvents),
-            JSON.parse(cachedEventRequests),
-            JSON.parse(cachedTeamRequests)
-          );
+        if (events.length || eventReqs.length || teamReqs.length) {
+          processData(events, eventReqs, teamReqs as AnyActionArg );
+          setLoading(false);
         }
       };
 
       const fetchFreshData = async () => {
         try {
           const token = await SecureStore.getItemAsync("userToken");
+          const user_id = await SecureStore.getItemAsync("userId");
           if (!token) throw new Error("User token missing");
 
-          const [eventsRes, eventReqRes, teamReqRes] = await Promise.all([
+          const [eventsRes, eventReqRes, teamReqRes, teamRes] = await Promise.all([
             fetch(`${API_BASE_URL}/events`, { headers: { Authorization: token } }),
             fetch(`${API_BASE_URL}/requestes/events`, { headers: { Authorization: token } }),
             fetch(`${API_BASE_URL}/requestes/people`, { headers: { Authorization: token } }),
+            fetch(`${API_BASE_URL}/teams`, { headers: { Authorization: token } })
           ]);
-
-          if (!eventsRes.ok || !eventReqRes.ok || !teamReqRes.ok) {
+          if (!eventsRes.ok || !eventReqRes.ok || !teamReqRes.ok  ) {
             throw new Error("Failed to fetch one or more data sets");
           }
 
           const eventsData: Event[] = await eventsRes.json();
-          const eventRequestsData: Request[] = await eventReqRes.json();
-          const teamRequestsData: Request[] = await teamReqRes.json();
+          const eventRequestsData: Event[] = await eventReqRes.json();
+          const teamRequestsData: TeamRequest[] = await teamReqRes.json();
+          const TeamData : Team[] = await teamRes.json()          
 
-          await insertEvent(eventsData[0])
-
-          console.log(eventsData);
-
-          const result = await getAllEvents()
-
-          console.log(result.data);
+          const eventRequestFormatted = eventRequestsData.map(e => ({
+              event_id: e.event_id,
+              user_id: user_id,
+              status : "pending"
+            }));
           
+          // 🟢 Sync nested entities
+          await syncEventsWithNestedData([...eventsData,...eventRequestsData]);
 
-          await AsyncStorage.setItem("cachedEvents", JSON.stringify(eventsData));
-          await AsyncStorage.setItem("cachedEventRequests", JSON.stringify(eventRequestsData));
-          await AsyncStorage.setItem("cachedTeamRequests", JSON.stringify(teamRequestsData));
+          await queueDB(()=>
+            syncTable("event_requests", ["event_id", "user_id"], eventRequestFormatted, [
+              "event_id", "user_id", "status"
+            ])
+          )
+            
+          await SyncTeamRequstWithNestedData(teamRequestsData);
 
-          processData(eventsData, eventRequestsData, teamRequestsData);
+          const TeamsFromReq = teamRequestsData.map((r) => {
+            if(r.branch?.team){
+              return r.branch.team;
+            }
+            return null;
+          })          
+
+          queueDB(()=>
+            syncTable("teams", ["team_id"], [...TeamData, ...TeamsFromReq.filter((f) => f !== null)],["team_id", "team_name", "team_description", "joined_at"])
+          )          
+          // 🟢 Rebuild events with joins
+          const rebuiltEvents = await getJoinedEvents();
+
+          processData(rebuiltEvents, eventRequestsData, teamRequestsData);
         } catch (error) {
           console.warn("Fetch failed, keeping cached data.", error);
         }

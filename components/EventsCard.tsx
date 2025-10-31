@@ -24,7 +24,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
-import { FontAwesome5, Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { HandlerStateChangeEvent } from "react-native-gesture-handler";
 
 import { EventItem } from '@/app/(tabs)/(events)/events';
@@ -170,8 +170,10 @@ const EventItemCard: React.FC<EventItemCardProps> = ({
               </Text>
               <Text style={styles.title}>{limitWords(event.title, 5)}</Text>
               <Text style={styles.description}>{limitWords(event.description, 8)}</Text>
-              <Text style={styles.from}>By: {event.creator.name}</Text>
-              <Text style={styles.location}>📍 {event.location}</Text>
+              <View style={{flexDirection:"row", marginTop: 10, gap : 16}}>
+                <Text style={styles.from}><Ionicons name="person-outline" size={12} color="#666" /> {event.creator.name}</Text>
+                <Text style={styles.location}><Ionicons name="compass-outline" size={12} color={"#666"}></Ionicons> {event.location}</Text>
+              </View>
             </Animated.View>
           </PanGestureHandler>
           </Pressable>
@@ -239,7 +241,7 @@ const styles = StyleSheet.create({
     color: '#222',
   },
   description: {
-    marginTop: 6,
+    marginTop: 10,
     fontSize: 14,
     color: '#666',
   },

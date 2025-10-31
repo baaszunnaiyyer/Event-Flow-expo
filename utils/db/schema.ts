@@ -1,7 +1,7 @@
 // src/db/schema.ts
 import * as SQLite from "expo-sqlite";
 
-export const db = SQLite.openDatabaseSync("app.db");
+export const db = SQLite.openDatabaseSync("EventFlowDB.db");
 
 // Run this on app startup
 export async function initDatabase() {

@@ -36,8 +36,26 @@
           "backgroundColor": "#ffffff"
         }
       ],
+      [
+        "expo-sqlite",
+        {
+          "enableFTS": true,
+          "useSQLCipher": true,
+          "android": {
+            "enableFTS": false,
+            "useSQLCipher": false
+          },
+          "ios": {
+            "customBuildFlags": [
+              "-DSQLITE_ENABLE_DBSTAT_VTAB=1 -DSQLITE_ENABLE_SNAPSHOT=1"
+            ]
+          }
+        }
+      ],
       "expo-secure-store",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-notifications",
+      "expo-background-task"
     ],
     "experiments": {
       "typedRoutes": true
@@ -49,11 +67,12 @@
       }
     },
     "owner": "baaszunnaiyyer",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/05cb1182-32f4-43f8-8a9c-f75025e1e2ca"
+    },
+    "notification": {
+      "icon": "./assets/images/icon.png"
     }
   }
 }

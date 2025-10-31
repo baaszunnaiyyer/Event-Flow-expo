@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Pressable, SafeAreaView, TextInput, View, Text, ActivityIndicator } from 'react-native';
+import { Pressable, SafeAreaView, TextInput, View, Text, ActivityIndicator, RefreshControl  } from 'react-native';
 import {
   ScrollView,
   GestureHandlerRootView,
@@ -10,12 +10,21 @@ import {notificationStyles as styles} from "@/styles/Notification.styles"
 import { Event as TaskInterface, TeamRequest  } from '@/types/model';
 import { useRequestsData } from '@/hooks/useRequestsData';
 import {handleEventResponse, handleTeamRequestResponse} from '@/utils/Requestes/requestHelpers'
+
+
 function Requestes() {
   const [activeTab, setActiveTab] = useState<'event' | 'team'>('event');
   const [search, setSearch] = useState<string>("");  
+  const [refreshing, setRefreshing] = useState(false);
   const scrollRef = useRef(null);
 
-  const { loading, eventTasks, teamRequests } = useRequestsData(activeTab);
+  const { loading, eventTasks, teamRequests, reload } = useRequestsData(activeTab);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await reload(); // call the hook’s reload function
+    setRefreshing(false);
+  };
 
   const isEventTab = activeTab === 'event';
   const filteredEventTasks = eventTasks.filter((task) =>
@@ -23,17 +32,21 @@ function Requestes() {
     task.description.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredTeamRequests = teamRequests.filter((request) =>
-    request.branch !== null ? (
-    request.branch.branch_name.toLowerCase().includes(search.toLowerCase()) ||
-    request.sender.name.toLowerCase().includes(search.toLowerCase()) ||
-    request.sender.phone.includes(search.toLowerCase())
-    ) : (
-      request.sender.name.toLowerCase().includes(search.toLowerCase()) ||
-      request.sender.email.toLowerCase().includes(search.toLowerCase()) ||
-      request.sender.phone.includes(search.toLowerCase())
-    )
+  const filteredTeamRequests = teamRequests.filter((request) => {
+  const searchText = search.toLowerCase();
+
+  const branchName = request.branch?.branch_name?.toLowerCase() || "";
+  const senderName = request.sender?.name?.toLowerCase() || "";
+  const senderEmail = request.sender?.email?.toLowerCase() || "";
+  const senderPhone = request.sender?.phone || "";
+
+  return (
+    branchName.includes(searchText) ||
+    senderName.includes(searchText) ||
+    senderEmail.includes(searchText) ||
+    senderPhone.includes(searchText)
   );
+});
 
 
   return (
@@ -67,7 +80,6 @@ function Requestes() {
         />
       </View>
 
-      <Text style={styles.sectionTitle}>Requests</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#090040" />
       ) : (
@@ -76,6 +88,7 @@ function Requestes() {
           ref={scrollRef}
           style={{ flex: 1 , marginBottom: 100}}
           contentContainerStyle={{ flexGrow: 1, paddingBottom: 20 }}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
         >
           {isEventTab ? (
             filteredEventTasks.length > 0 ? (

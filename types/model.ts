@@ -28,10 +28,13 @@ export type Event = {
   location: string;
   created_by: string;
   team_id: string | null;
+  isAdmin :string;
   branch_id: string | null;
   created_at: string;
   updated_at: string;
-  creator: Creator;
+  team : Team;
+  branch : Branch;
+  creator: Creator | null; // always string from SQL
   is_recurring: boolean;
   frequency?: "Daily" | "Weekly" | "Monthly" | "Yearly";
   interval?: number;
@@ -45,14 +48,17 @@ export type Request = {
   name?: string;
   date?: string;
   datetime?: string;
+  respond_at? : string;
   [key: string]: any;
 };
 
 export type Team = {
+  requests : string | null;
   team_id : string,
   team_name : string,
   team_description : string,
-  joined_at : string
+  joined_at : string,
+  team_members?: TeamMember;
 }
 
 export type Branch = { 
@@ -67,9 +73,12 @@ export type Branch = {
 
 export type TeamRequest = {
   request_id : string;
+  user_id : string;
+  sent_by : string;
   request_type : string;
   status : string;
   added_at : string;
+  branch_id : string;
   index: number;
   branch : Branch | null;
   sender : Creator;
@@ -93,6 +102,15 @@ export type TeamMember = {
   user_id :  string,
   role : string
 }
+
+export type BranchMember = {
+  branch_id : string;
+  team_id : string,
+  user_id :  string,
+  role : string,
+  joined_at : string,
+}
+
 
 export type SchemaBranch = {
   branch_id : string;

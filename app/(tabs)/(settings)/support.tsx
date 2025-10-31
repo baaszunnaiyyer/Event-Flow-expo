@@ -39,16 +39,16 @@ const SupportScreen = () => {
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Contact Us</Text>
           <TouchableOpacity onPress={openEmail}>
-            <Text style={styles.link}>📧 Email: support@youreventapp.com</Text>
+            <Text style={styles.link}>📧 Email: baaszunnaiyyer</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={openPhone}>
-            <Text style={styles.link}>📞 Phone: +1 234 567 890</Text>
+            <Text style={styles.link}>📞 Phone: +92 349 3131433</Text>
           </TouchableOpacity>
         </View>
 
         {/* Quick Help Topics */}
         <View style={styles.card}>
-          <Text style={styles.cardTitle}>Quick Help</Text>
+          <Text style={styles.cardTitle}>Quick Help (Comming Soon)</Text>
           <Text style={styles.bullet}>• How to create an event using emails</Text>
           <Text style={styles.bullet}>• Inviting an entire branch or team</Text>
           <Text style={styles.bullet}>• Resolving scheduling conflicts</Text>

@@ -15,6 +15,7 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import Toast from "react-native-toast-message";
+import { db } from "@/utils/db/schema";
 
 // --- Types ---
 type RootStackParamList = {
@@ -50,29 +51,62 @@ const ContactDetailScreen = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
-  useEffect(() => {
-    const fetchContact = async () => {
-      try {
-        const token = await SecureStore.getItemAsync("userToken");
-        const res = await fetch(`${API_BASE_URL}/contacts/${userId}`, {
-          method: "GET",
-          headers: {
-            Authorization: `${token}`,
-          },
-        });
-        if (!res.ok) throw new Error("Not found");
-        const data: Contact = await res.json();
-        setContact(data);
-      } catch (err) {
+useEffect(() => {
+  let isActive = true;
+
+  const fetchContact = async () => {
+    setLoading(true);
+    try {
+      // Step 1: Load from local DB first
+      const localContact = await db.getFirstAsync<Contact>(
+        "SELECT u.* FROM users AS u LEFT JOIN contacts AS c ON c.contact_user_id = u.user_id WHERE c.contact_user_id = ?",
+        [userId]
+      );
+
+      console.log(localContact);
+      
+
+      if (isActive && localContact) {
+        setContact(localContact);
+        console.log("✅ Loaded contact from cache:", localContact.name);
+        setLoading(false);
+      }
+
+      // Step 3: Fetch from API
+      const token = await SecureStore.getItemAsync("userToken");
+      if (!token) throw new Error("Missing token");
+
+      const res = await fetch(`${API_BASE_URL}/contacts/${userId}`, {
+        method: "GET",
+        headers: { Authorization: `${token}` },
+      });
+
+      if (!res.ok) throw new Error("Not found");
+
+      const data: Contact = await res.json();
+
+      // Step 5: Update UI
+      if (isActive) setContact(data);
+      console.log("🔄 Updated contact from API:", data.name);
+    } catch (err) {
+      console.warn("❌ Fetch contact error:", err);
+      if (isActive) {
         setError(
           "User is not in your contacts.\nPlease add them to view more information."
         );
-      } finally {
-        setLoading(false);
       }
-    };
-    fetchContact();
-  }, [userId]);
+    } finally {
+      if (isActive) setLoading(false);
+    }
+  };
+
+  fetchContact();
+
+  return () => {
+    isActive = false;
+  };
+}, [userId]);
+
 
   const Delete = async () => {
     try{

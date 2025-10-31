@@ -14,6 +14,7 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { Path as SvgPath } from "react-native-svg";
+import { router } from "expo-router";
 
 const AnimatedPath = Animated.createAnimatedComponent(SvgPath);
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -126,6 +127,9 @@ const HierarchyChart: React.FC<HierarchyChartProps> = ({ data }) => {
 
         const handlePress = () => {
           console.log("Node clicked:", node.name);
+          console.log(node);
+          
+          // router.push(`./(branches)/${node.branch_id}`)
 
           // Pulse effect: grow and shrink
           radius.value = withTiming(NODE_RADIUS * 1.2, { duration: 150 }, () => {

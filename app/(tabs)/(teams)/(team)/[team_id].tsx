@@ -19,6 +19,10 @@ import { router } from "expo-router";
 import HierarchyChart from "@/components/HirarchyChart";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
+import { upsertTable } from "@/utils/db/SyncDB";
+import { db } from "@/utils/db/schema";
+import { queueDB } from "@/utils/db/DatabaseQueue";
+import { BranchMember } from "@/types/model";
 
 interface Branch {
   branch_id: string;
@@ -94,6 +98,7 @@ type RootStackParamList = {
 type TeamRouteProp = RouteProp<RootStackParamList, "TeamDetails">;
 
 interface User {
+  user_id : string | null;
   name: string;
   email: string;
 }
@@ -120,6 +125,13 @@ interface Member {
   role: string;
 }
 
+interface JustTeam {
+  team_id : string;
+  team_name: string;
+  team_description: string;
+  joined_at: Date;
+}
+
 interface Team {
   team_name: string;
   team_description: string;
@@ -129,15 +141,11 @@ interface Team {
 }
 
 const Team = () => {
-
-
-  const [trigger, setTrigger] = useState(false)
-
   const [hirarchyData, setHirarchyData] = useState<HierarchyNode[][]>([]);
   const [teamMember, setTeamMember] = useState<TeamMembers[] | null>(null);
   const [teamData, setTeamData] = useState<Team | null>(null);
-  const [teamName, setTeamName] = useState<string>();
-  const [teamDescription, setTeamDecription] = useState<string>();
+  const [teamName, setTeamName] = useState<string>("");
+  const [teamDescription, setTeamDecription] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [activityLoading, setActivityLoading] = useState<boolean>(false);
@@ -147,13 +155,28 @@ const Team = () => {
   const [selectedView, setSelectedView] = useState<"tree" | "cards">("tree");
 
 
-
-
-
   useFocusEffect(
     useCallback(() => {
+      let TeamisDone = false;
       const getTeam = async () => {
         try {
+          // Loading Data from LocalCached Data
+          let team = await db.getFirstAsync("SELECT * FROM teams WHERE team_id = ?",[team_id]) as Team | null ;
+          const branch = await db.getAllAsync("SELECT * FROM branches WHERE team_id = ?",[team_id]) as Branch[];
+          const branch_members = await db.getAllAsync("SELECT * FROM branch_members WHERE team_id = ?",[team_id]) as BranchMember[];
+          if (team) {
+            (team as any).branches = branch;
+            (team as any).branch_members = branch_members;
+          }
+
+          if(team && team.branch_members && team.branches){
+            setHirarchyData(buildHierarchyDataFromBranches(team.team_name, team.branches));
+            setTeamData(team);
+            setTeamName(team.team_name);
+            setTeamDecription(team.team_description);
+            TeamisDone = true
+          }
+
           const token = await SecureStore.getItemAsync("userToken");
 
           const res = await fetch(`${API_BASE_URL}/teams/${team_id}`, {
@@ -168,12 +191,32 @@ const Team = () => {
             throw new Error(`Failed to fetch team: ${res.status}`);
           }
 
-          const data = await res.json();
+          const data = await res.json() as Team;
+
+          await queueDB(()=>
+            upsertTable("branch_members",["branch_id","team_id","user_id"],data.branch_members, ["branch_id","team_id","user_id","joined_at","role"])
+          )
+
+          const branches = data.branches.map((e)=>({
+            team_id,
+            ...e
+          }))          
+
+          
+          await queueDB(()=>
+            upsertTable("branches",["branch_id"],branches,[
+              "branch_description",
+              "branch_id",
+              "branch_name",
+              "parent_branch_id",
+              "team_id"])
+          )
+          
+
           setHirarchyData(buildHierarchyDataFromBranches(data.team_name, data.branches));
           setTeamData(data);
           setTeamName(data.team_name);
           setTeamDecription(data.team_description);
-
         } catch (err: any) {
           Toast.show({
             type: "error",
@@ -187,8 +230,15 @@ const Team = () => {
 
       const getMembers = async () => {
         try {
-          const token = await SecureStore.getItemAsync("userToken");
           const userId = await SecureStore.getItemAsync("userId")
+          const LocalData = await db.getAllAsync("SELECT u.*, t.role FROM users as u LEFT JOIN team_members as t ON u.user_id = t.user_id WHERE t.team_id  = ?",[team_id]) as TeamMembers[];
+          if(LocalData.length > 0){
+            setIsAdmin(LocalData.some((e : any) => (e.user_id == userId && e.role == 'admin')))
+            setTeamMember(LocalData)
+            setLoading(false);         
+          }
+
+          const token = await SecureStore.getItemAsync("userToken");
           const res = await fetch(`${API_BASE_URL}/teams/${team_id}/members`, {
             method: "GET",
             headers: { Authorization: `${token}` },
@@ -197,12 +247,38 @@ const Team = () => {
           if (!res.ok) {
             throw new Error(`Failed to fetch team members: ${res.status}`);
           }
-
+          
           const data = await res.json();
-          console.log(data.some((e : any) => (e.user_id == userId && e.role == 'admin')));
+          const dataFormatted = data.map((member : TeamMembers) => ({
+            team_id : team_id,
+            user_id : member.user_id,
+            role : member.role
+          }))
+
+          queueDB(()=>
+            upsertTable("team_members",["team_id","user_id"],dataFormatted,
+              [
+                "team_id",
+                "user_id",
+                "role"
+              ])
+          )
+
+          const userSyncData = data.filter((user : User) => user.user_id !== userId)
+          queueDB(()=>
+            upsertTable("users", ["user_id"], userSyncData, 
+              [
+                "country",
+                "date_of_birth",
+                "email",
+                "gender",
+                "name",
+                "phone",
+                "user_id"
+              ])
+          )
           
           setIsAdmin(data.some((e : any) => (e.user_id == userId && e.role == 'admin')))
-          
           
           setTeamMember(data);
         } catch (error: any) {
@@ -213,12 +289,11 @@ const Team = () => {
           });
         }
       };
-
       // Fetch both when screen is focused
       getTeam();
       getMembers();
 
-    }, [team_id, editing, trigger]) // dependencies
+    }, [team_id, editing]) // dependencies
   );
 
 
@@ -246,6 +321,7 @@ const Team = () => {
         if (!res.ok) {
         throw new Error("Failed to delete team");
         }
+        await db.runAsync("UPDATE teams SET team_name = ?, team_description = ? WHERE team_id = ?",[teamName, teamDescription, team_id])
 
         Toast.show({
         type: "success",
@@ -290,6 +366,7 @@ const Team = () => {
               }
               
               router.back()
+              await db.runAsync("DELETE from teams WHERE team_id = ?", [team_id]);
               Toast.show({
                 type: "success",
                 text1: "Team deleted successfully",

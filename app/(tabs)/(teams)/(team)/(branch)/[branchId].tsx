@@ -19,6 +19,7 @@ import { API_BASE_URL } from "@/utils/constants";
 import { PRIMARY_COLOR, BACKGROUND_COLOR } from "@/constants/constants";
 import { useFocusEffect } from "@react-navigation/native";
 import { useCallback } from "react";
+import { db } from "@/utils/db/schema";
 
 interface User {
   name: string;
@@ -78,16 +79,67 @@ const BranchDetails = () => {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [branch, setBranch] = useState<BranchData | null>(null);
-  const [branchName , setBranchName] = useState<string>()
+  const [branchName , setBranchName] = useState<string>("")
   const [activityLoading ,setActivityLoading] = useState<boolean>(false)
-  const [branchDescription , setBranchDescription] = useState<string>()
+  const [branchDescription , setBranchDescription] = useState<string>("")
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
 
   useFocusEffect(
     useCallback(() => {
-      const fetchBranch = async () => {
+      const fetchLocalBranch = async () =>{
         try {
+          const userId = await SecureStore.getItemAsync("userId")
+          let branch = await db.getFirstAsync("SELECT * FROM branches WHERE branch_id = ?", [branch_id]) as any;
+          const parent_id  = branch.parent_branch_id;
+          if(branch){
+            (branch as any).children = await db.getAllAsync("SELECT * FROM branches WHERE parent_branch_id = ?",[branch_id]);
+            (branch as any).events = await db.getAllAsync("SELECT * FROM events WHERE team_id = ? AND branch_id = ?" , [team_id, branch_id]);
+            (branch as any).parent_branch = await db.getFirstAsync("SELECT * FROM branches WHERE branch_id = ?", [parent_id]);
+            let team  = await db.getFirstAsync("SELECT team_name FROM teams WHERE team_id= ?",[team_id]);            
+            if(team){
+              (team as any).team_members = await db.getAllAsync("SELECT u.* FROM users as u LEFT JOIN team_members as tm ON tm.user_id = u.user_id WHERE tm.team_id = ?",[team_id]);
+              (branch as any).team = team;
+            }
+            const branch_members_raw = await db.getAllAsync(
+              `SELECT bm.*, u.name, u.email , u.phone
+              FROM branch_members bm
+              LEFT JOIN users u ON bm.user_id = u.user_id
+              WHERE bm.branch_id = ?`,
+              [branch_id]
+            );
+            
+            if(branch_members_raw){
+              (branch as any).branch_members = branch_members_raw.map((bm: any) => ({
+                role : bm.role,
+                joined_at : bm.joined_at,
+                user_id : bm.user_id,
+                user : {
+                  name : bm.name,
+                  email  : bm.email,
+                  phone : bm.phone
+                }
+              }))
+            }
+            
+          }
+
+          setIsAdmin((branch.branch_members.some((m : any) => (m.user_id == userId && m.role == 'admin')) || branch.team.team_members.some((m: any) => (m.user_id == userId && m.role == 'admin'))))
+          setBranch(branch)
+          setBranchName(branch.branch_name)
+          setBranchDescription(branch.branch_description);
+          setLoading(false)
+        } catch (err: any) {
+          Toast.show({
+            type: "error",
+            text1: "Error",
+            text2: err.message,
+          });
+        }
+      }
+
+      const fetchBranch = async () => {
+        try {         
           const token = await SecureStore.getItemAsync("userToken");
           const userId = await SecureStore.getItemAsync("userId")
           const res = await fetch(
@@ -102,9 +154,8 @@ const BranchDetails = () => {
 
           if (!res.ok) throw new Error("Failed to fetch branch");
 
-          const data = await res.json();
-          console.log((data.branch_members.some((m : any) => (m.user_id == userId && m.role == 'admin')) || data.team.team_members.some((m: any) => (m.user_id == userId && m.role == 'admin'))));
-          
+          const data = await res.json();          
+                    
           setIsAdmin((data.branch_members.some((m : any) => (m.user_id == userId && m.role == 'admin')) || data.team.team_members.some((m: any) => (m.user_id == userId && m.role == 'admin'))))
           setBranch(data);
           setBranchName(data.branch_name);
@@ -120,7 +171,8 @@ const BranchDetails = () => {
         }
       };
 
-      fetchBranch();
+      fetchLocalBranch();
+      fetchBranch();  
 
       // Optional: cleanup if needed (e.g., cancel fetch)
       return () => {
@@ -148,6 +200,8 @@ const BranchDetails = () => {
             );
 
             if (!res.ok) throw new Error("Failed to delete");
+
+            await db.runAsync("DELETE from branches WHERE branch_id = ?", [branch_id]);
 
             Toast.show({ type: "success", text1: "Branch deleted" });
             router.back();
@@ -189,6 +243,7 @@ const BranchDetails = () => {
         })
     
         if(!res.ok) throw new Error("Failed to Edit");
+        await db.runAsync("UPDATE branches SET branch_name = ?, branch_description = ? WHERE branch_id  = ?",[branchName,branchDescription, branch_id])
     
         Toast.show({ type: "success", text1: "Branch Eidited" });
     

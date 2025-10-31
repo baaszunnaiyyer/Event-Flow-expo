@@ -10,11 +10,10 @@ import Animated, {
   useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
-  withDelay,
   withTiming,
 } from 'react-native-reanimated';
 import { TaskInterface } from '../app/(tabs)/notification';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 
 interface ListItemProps
   extends Pick<PanGestureHandlerProps, 'simultaneousHandlers'> {
@@ -127,32 +126,37 @@ const ListItem: React.FC<ListItemProps> = ({
       >
         <Animated.View style={[styles.task, rStyle]}>
         <View style={styles.header}>
-          <Text style={styles.taskTitle} numberOfLines={1}>{task.title}</Text>
+          <Text style={styles.taskTitle} numberOfLines={1}>
+            {String(task.title ?? 'Untitled')}
+          </Text>
           <Text style={styles.tag}>{task.category}</Text>
         </View>
 
         <Text style={styles.taskDescription} numberOfLines={1}>
-          {task.description || 'No description provided'}
+          <Ionicons name='document-text-outline' color={"#666"}></Ionicons> : {String(task.description ?? 'No description provided')}
         </Text>
 
         <View style={styles.footer}>
-          <Text style={styles.fromText}>From : {task.creator.name}</Text>
-          <Text style={styles.timeText}>
-            Time : {new Date(task.start_time).toLocaleString()} -{" "}
-            {new Date(task.end_time).toLocaleTimeString()}
-          </Text>
+          <View style={{flexDirection: 'row', justifyContent:"space-between"}}>
+            <Text style={styles.fromText}>
+              <Ionicons name='person-outline' size={10}></Ionicons> : {task.creator?.name ?? 'Unknown'}
+            </Text>
+
+            <Text style={styles.timeText}>
+              <Ionicons name="alarm-outline" size={10}></Ionicons> : {task.start_time ? new Date(task.start_time).toLocaleString() : 'N/A'} -{" "}
+              {task.end_time ? new Date(task.end_time).toLocaleTimeString() : 'N/A'}
+            </Text>
+          </View>
           {task.is_recurring &&
-          <View style={{flexDirection: 'row', gap: 45}}>
-          <Text style={styles.timeText}>Frequency : {task.frequency}</Text>
-          {task.until && (
-            <Text style={styles.timeText}>Until : {new Date(task.until).toLocaleDateString()}</Text>
-          )}
+          <View style={{flexDirection: 'row', justifyContent: "space-between"}}>
+            <Text style={styles.timeText}><Ionicons name='speedometer-outline' size={10}></Ionicons> : {task.frequency}</Text>
+            {task.until && (
+              <Text style={styles.timeText}><Ionicons name='golf-outline' size={10}></Ionicons> {new Date(task.until).toLocaleDateString()}</Text>
+            )}
           </View>
           }
         </View>
       </Animated.View>
-
-              
       </PanGestureHandler>
     </Animated.View>
   );
@@ -198,7 +202,7 @@ const styles = StyleSheet.create({
   taskDescription: {
     fontSize: 14,
     color: '#555',
-    marginBottom: 8,
+    marginBottom: 6,
   },
   taskSender: {
     fontSize: 12,
@@ -240,9 +244,6 @@ footer: {
   flexDirection: 'column',
   justifyContent: 'space-between',
 },
-
-
-
 timeText: {
   fontSize: 12,
   color: '#999',

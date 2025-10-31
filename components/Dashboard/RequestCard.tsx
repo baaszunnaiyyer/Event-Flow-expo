@@ -8,9 +8,16 @@ type Props = {
   title: string;
   requests: Request[];
   noDataMessage?: string;
+  length? : number;
 };
 
-const RequestCard: React.FC<Props> = ({ title, requests, noDataMessage = "No event requests found." }) => {
+
+
+const RequestCard: React.FC<Props> = ({ title, requests, noDataMessage = "No event requests found." , length = 3}) => {
+
+
+  const mapping_Request = requests.slice(0, length)
+
   if (!requests || requests.length === 0) {
     return (
       <View style={styles.card}>
@@ -27,7 +34,7 @@ const RequestCard: React.FC<Props> = ({ title, requests, noDataMessage = "No eve
     <View style={styles.card}>
       <Text style={styles.cardTitle}>{title}</Text>
       <View style={styles.divider} />
-      {requests.map((request, index) => {
+      {mapping_Request.map((request, index) => {
         const dateStr = request.date || request.added_at || request.start_time || "";
         return (
           <View style={styles.eventRow} key={request.id || index}>

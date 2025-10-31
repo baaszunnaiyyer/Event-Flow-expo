@@ -7,9 +7,10 @@ import {
   View,
   TextInput,
   Pressable,
+  Vibration,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { GestureHandlerRootView, ScrollView } from "react-native-gesture-handler";
+import { GestureHandlerRootView, RefreshControl, ScrollView } from "react-native-gesture-handler";
 import { API_BASE_URL } from "@/utils/constants";
 import EventCard from "@/components/EventsCard";
 import { router } from "expo-router";
@@ -17,7 +18,12 @@ import Toast from "react-native-toast-message";
 import { PRIMARY_COLOR } from "@/constants/constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
-
+import { db } from "@/utils/db/schema";
+import { Event } from "@/types/model";
+import { useFocusEffect } from "@react-navigation/native";
+import { useCallback } from "react";
+import { syncEventsWithNestedData } from "@/utils/db/Events";
+import { runOnJS } from "react-native-reanimated";
 type EventState = "Todo" | "InProgress" | "Completed" | "TodayRecurring";
 type EventTypeTab = "Progressive" | "Recursive";
 
@@ -64,87 +70,132 @@ export default function HomeScreen() {
   const [search, setSearch] = useState("");
   const [events, setEvents] = useState<EventItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState<EventState>("Todo");
   const [eventTypeTab, setEventTypeTab] = useState<EventTypeTab>("Progressive");
   const scrollRef = useRef(null);
 
-  useEffect(() => {
-    const fetchEvents = async () => {
-      setLoading(true);
-
+  const fetchFresh = async () => {
+    try {
       const token = await SecureStore.getItemAsync("userToken");
       if (!token) {
         console.warn("User token missing");
-        setLoading(false);
         return;
       }
 
-      // Promise to get fresh data
-      const fetchFresh = async () => {
-        const res = await fetch(`${API_BASE_URL}/events`, {
-          headers: { Authorization: `${token}` },
-        });
-        if (!res.ok) throw new Error("Failed to fetch events");
-        const data = await res.json();        
-        const formatted = data.map((event: any) => formatEvent(event));
-        
-                
-        // Save cache for next time
-        await AsyncStorage.setItem("cachedEvents", JSON.stringify(formatted));
-        return formatted;
-      };
+      const res = await fetch(`${API_BASE_URL}/events`, {
+        headers: { Authorization: `${token}` },
+      });
+      if (!res.ok) throw new Error("Failed to fetch events");
 
-      // Promise to get cached data
-      const loadCached = async () => {
-        try {
-          const cached = await AsyncStorage.getItem("cachedEvents");
-          if (cached) {
-            return JSON.parse(cached).map((e: any) => formatEvent(e));
+      const data = await res.json();
+      const formatted = data.map((event: any) => formatEvent(event));
+
+      // ✅ 1. Cache in AsyncStorage for instant load
+      await AsyncStorage.setItem("cachedEvents", JSON.stringify(formatted));
+
+      // ✅ 2. Sync to SQLite (deep sync: events, users, teams, branches, etc.)
+      await syncEventsWithNestedData([...data]);
+
+      // ✅ 3. Update state to display in UI
+      setEvents(formatted);
+    } catch (error) {
+      console.warn("❌ Failed to fetch or sync events:", error);
+    }
+  };
+
+
+
+  const onRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchFresh();
+    } catch (error) {
+      console.warn("Refresh failed:", error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
+      setLoading(true);
+
+      const fetchEvents = async () => {
+        const token = await SecureStore.getItemAsync("userToken");
+        if (!token) {
+          console.warn("User token missing");
+          if (isActive) setLoading(false);
+          return;
+        }
+
+        const loadCached = async () => {
+          try {
+            const SQLiteData = await db.getAllAsync<Event>(`
+              SELECT * 
+              FROM events AS e 
+              WHERE NOT EXISTS (
+                SELECT * FROM event_requests AS er 
+                WHERE e.event_id = er.event_id
+              )
+            `);
+            
+
+            const Formatted = await Promise.all(
+              SQLiteData.map(async (d) => {
+                const creator = d.created_by
+                  ? await db.getFirstAsync(`SELECT * FROM users WHERE user_id = ?`, [d.created_by])
+                  : null;
+
+                const branch = d.branch_id
+                  ? await db.getFirstAsync(`SELECT * FROM branches WHERE branch_id = ?`, [d.branch_id])
+                  : null;
+
+                const team = d.team_id
+                  ? await db.getFirstAsync(`SELECT * FROM teams WHERE team_id = ?`, [d.team_id])
+                  : null;
+
+                return {
+                  ...d,
+                  creator,
+                  branch,
+                  team,
+                  isAdmin: Boolean(d.isAdmin),
+                  is_recurring: Boolean(d.is_recurring),
+                };
+              })
+            );
+
+            if (Formatted && isActive) {
+              setEvents(Formatted.map((e: any) => formatEvent(e)));
+            }
+          } catch (err) {
+            console.warn("Error loading cached events:", err);
+          } finally {
+            if (isActive) setLoading(false);
           }
-        } catch (err) {
-          console.warn("Error loading cached events:", err);
-        }
-        return [];
+        };
+
+        // ✅ Only load from cache (no API calls)
+        await loadCached();
       };
 
-      try {
-        // Race fresh fetch against a 3s timer
-        const freshData = await Promise.race([
-          fetchFresh(),
-          new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000)),
-        ]);
+      fetchEvents();
 
-        if (freshData) {
-          // Fresh data arrived in <3s
-          setEvents(freshData);
-        } else {
-          // Fresh data is slow → show cache now
-          const cachedData = await loadCached();
-          setEvents(cachedData);
+      return () => {
+        isActive = false; // cleanup when screen unfocused
+      };
+    }, [tab])
+  );
 
-          // Now wait for fresh data and update when it arrives
-          fetchFresh()
-            .then((fresh) => setEvents(fresh))
-            .catch((err) => console.warn("Fresh fetch failed:", err));
-        }
-      } catch (err) {
-        console.warn("Error fetching events:", err);
-        const cachedData = await loadCached();
-        setEvents(cachedData);
-      }
-
-      setLoading(false);
-    };
-
-    fetchEvents();
-  }, [tab]);
 
   const toBackendState = (state: EventState): string => {
     switch (state) {
       case "InProgress":
         return "InProgress";
       case "Completed":
-        return "Completed";filtered
+        return "Completed";
       default:
         return state;
     }
@@ -173,7 +224,10 @@ export default function HomeScreen() {
       throw new Error("Failed to update event state");
     }
 
+    await db.runAsync(`UPDATE events SET state = ? WHERE event_id = ?`,[newState, eventId])
+    
     const updated = await res.json();
+
     return updated;
   };
 
@@ -301,12 +355,6 @@ export default function HomeScreen() {
       (e) => e.is_recurring === true && !isExpired(e) // 🚫 skip past-until events
     );
   }
-
-
-
-
-
-
   return (
     <GestureHandlerRootView style={styles.container}>
       {/* Top-level tab: Progressive / Recursive */}
@@ -375,6 +423,12 @@ export default function HomeScreen() {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 100 }}
+            refreshControl={
+              <RefreshControl
+                  refreshing={refreshing}
+                  onRefresh={onRefresh}
+                  colors={[PRIMARY_COLOR]} />
+            }
           >
             <View style={{ paddingHorizontal: 2, paddingBottom: 20 }}>
               {filtered.length === 0 ? (

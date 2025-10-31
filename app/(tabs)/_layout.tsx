@@ -1,8 +1,41 @@
 import { Tabs } from "expo-router";
-import { Platform } from "react-native";
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Platform, PermissionsAndroid } from "react-native";
+import {
+  requestPermission,
+  AuthorizationStatus,
+} from "@react-native-firebase/messaging";
+
+async function requestNotificationPermission(messaging: any) {
+  if (Platform.OS === "ios") {
+    // iOS request
+    const authStatus = await requestPermission(messaging);
+    return (
+      authStatus === AuthorizationStatus.AUTHORIZED ||
+      authStatus === AuthorizationStatus.PROVISIONAL
+    );
+  }
+
+  if (Platform.OS === "android" && Platform.Version >= 33) {
+    // Android 13+ runtime permission
+    const granted = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      {
+        title: "Notification Permission",
+        message: "We need your permission to send you notifications",
+        buttonPositive: "Allow",
+        buttonNegative: "Deny",
+      }
+    );
+    return granted === PermissionsAndroid.RESULTS.GRANTED;
+  }
+
+  // Android < 13 → always granted
+  return true;
+}
 
 export default function TabsLayout() {
+
   return (
     <Tabs
       screenOptions={{

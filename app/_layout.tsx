@@ -1,11 +1,43 @@
 import { Stack } from "expo-router";
-import { ActivityIndicator, View, StyleSheet } from "react-native";
-import { useEffect, useState } from "react";
+import { ActivityIndicator, View, StyleSheet, Platform } from "react-native";
+import { useEffect, useState, Suspense, useLayoutEffect } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "@/utils/constants";
 import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
 import { useFonts } from 'expo-font';
+import * as Notifications from "expo-notifications";
+import { SQLiteProvider } from "expo-sqlite";
+import { getApp } from '@react-native-firebase/app';
+import { getMessaging, onMessage, onNotificationOpenedApp, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
+
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
+
+// const loadData = async () =>{
+//   const FileName = 'EventFlowDB.db'
+//   const dbAssests = require("../assets/LocalDatabase/EventFlowDB.db")
+//   const DBUri = Asset.fromModule(dbAssests).uri; 
+//   const dbFilePath = `${FileSystem.documentDirectory}SQLite/${FileName}`;
+
+
+//   const fileInfo = await FileSystem.getInfoAsync(dbFilePath);
+//   if (!fileInfo.exists) {
+//     await FileSystem.makeDirectoryAsync(
+//       `${FileSystem.documentDirectory}SQLite`,
+//       {intermediates : true}
+//     )
+//     await FileSystem.downloadAsync(DBUri, dbFilePath)
+//   }
+
+// }
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -14,9 +46,35 @@ export default function RootLayout() {
   });
 
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState<boolean>(false);
+
+  
+  useLayoutEffect(() => {
+    const app = getApp(); // required for modular API
+    const messaging = getMessaging(app);
+
+    // Foreground message
+    const unsubscribe = onMessage(messaging, async (remoteMessage) => {
+      console.log("📩 Foreground message:", remoteMessage);
+    });
+
+    // When notification opens the app from background
+    onNotificationOpenedApp(messaging, (remoteMessage) => {
+      console.log("📬 Opened from background:", remoteMessage.notification);
+    });
+
+    // Background handler (must be outside of component usually, but can also be set here)
+    setBackgroundMessageHandler(messaging, async (remoteMessage) => {
+      console.log("⚙️ Background message:", remoteMessage.notification);
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     const checkInitialRoute = async () => {
+
+      
       try {
         const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
         const token = await SecureStore.getItemAsync("userToken");
@@ -52,13 +110,15 @@ export default function RootLayout() {
       } catch (error) {
         console.error("Error checking app state:", error);
         setInitialRoute("(auth)");
+      }finally{
+        setLoaded(true)
       }
     };
 
-    checkInitialRoute();
+    checkInitialRoute();    
   }, []);
 
-  if (!initialRoute || !fontsLoaded) {
+  if (!initialRoute || !fontsLoaded || !loaded) {
     return (
       <View style={styles.loaderContainer}>
         <ActivityIndicator size="large" color="#090040" />
@@ -68,12 +128,20 @@ export default function RootLayout() {
 
   return (
     <>
-        <Stack initialRouteName={initialRoute}>
-          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-          <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-          <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
-        </Stack>
-      <Toast config={toastConfig} position="bottom" bottomOffset={100} />
+      <Suspense>
+        <SQLiteProvider
+        databaseName="EventFlowDB.db"
+        useSuspense>
+          {initialRoute &&
+            <Stack initialRouteName={initialRoute}>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+              <Stack.Screen name="(onboarding)" options={{ headerShown: false }} />
+            </Stack>
+          }
+          <Toast config={toastConfig} position="bottom" bottomOffset={100} />
+        </SQLiteProvider>
+      </Suspense>
     </>
   );
 }

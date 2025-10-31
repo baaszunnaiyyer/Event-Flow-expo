@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import {
   Ionicons,
@@ -16,102 +15,13 @@ import {
   MaterialCommunityIcons,
 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import * as SecureStore from "expo-secure-store";
-import { API_BASE_URL } from "@/utils/constants";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSettingsData, handleSignOut } from "@/hooks/useSettingsData";
 
 const router = useRouter();
 
-const handleSignOut = async () => {
-  try {
-    // Remove auth token
-    await SecureStore.deleteItemAsync("userToken");
-    await SecureStore.deleteItemAsync("userId")
-
-    // Remove all cached data
-    const cacheKeys = [
-      "cachedEvents",
-      "cachedEventRequests",
-      "cachedTeamRequests",
-      "cachedSettings",
-    ];
-    for (const key of cacheKeys) {
-      await AsyncStorage.removeItem(key);
-    }
-
-    router.replace("../../(auth)");
-    console.log("Token and cached data deleted successfully");
-  } catch (error) {
-    console.error("Error during logout:", error);
-  }
-};
-
 export default function SettingsScreen() {
-  const [loading, setLoading] = useState(true);
-  const [userInfo, setUserInfo] = useState({
-    name: "Loading...",
-    email: "Loading...",
-    phone: "Loading...",
-  });
 
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadCachedSettings = async () => {
-      try {
-        const cached = await AsyncStorage.getItem("cachedSettings");
-        if (cached && isMounted) {
-          setUserInfo(JSON.parse(cached));
-          setLoading(false); // show cached instantly
-        }
-      } catch (err) {
-        console.warn("Error loading cached settings:", err);
-      }
-    };
-
-    const fetchFreshSettings = async () => {
-      try {
-        const token = await SecureStore.getItemAsync("userToken");
-        if (!token) throw new Error("User token missing");
-
-        const res = await fetch(`${API_BASE_URL}/settings`, {
-          headers: {
-            Authorization: `${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to fetch settings");
-        }
-
-        const data = await res.json();
-        const formatted = {
-          name: data.name || "N/A",
-          email: data.email || "N/A",
-          phone: data.phone || "N/A",
-        };
-
-        if (!isMounted) return;
-        setUserInfo(formatted);
-        await AsyncStorage.setItem(
-          "cachedSettings",
-          JSON.stringify(formatted)
-        );
-      } catch (err: any) {
-        Alert.alert("Error", err.message || "Failed to fetch user data");
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    setLoading(true);
-    loadCachedSettings(); // load instantly from cache if available
-    fetchFreshSettings(); // refresh in background
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const {loading, userInfo} = useSettingsData();
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -131,32 +41,32 @@ export default function SettingsScreen() {
             <SettingsOption
               icon={<Feather name="lock" size={20} color="#090040" />}
               label="Privacy Policy"
-              onPress={() => router.replace("./privacy_policy")}
+              onPress={() => router.push("./privacy_policy")}
             />
-            <SettingsOption
+            {/* <SettingsOption
               icon={<Ionicons name="notifications-outline" size={20} color="#090040" />}
               label="Notifications"
-              onPress={() => router.replace("./notifications")}
-            />
+              onPress={() => router.push("./notifications")}
+            /> */}
             <SettingsOption
               icon={<Feather name="user" size={20} color="#090040" />}
               label="Profile"
-              onPress={() => router.replace("./profile")}
+              onPress={() => router.push("./profile")}
             />
             <SettingsOption
               icon={<MaterialIcons name="info-outline" size={20} color="#090040" />}
               label="About Us"
-              onPress={() => router.replace("./about_us")}
+              onPress={() => router.push("./about_us")}
             />
-            <SettingsOption
+            {/* <SettingsOption
               icon={<Feather name="sun" size={20} color="#090040" />}
               label="Appearance"
-              onPress={() => router.replace("./appearance")}
-            />
+              onPress={() => router.push("./appearance")}
+            /> */}
             <SettingsOption
               icon={<MaterialCommunityIcons name="lifebuoy" size={20} color="#090040" />}
               label="Support"
-              onPress={() => router.replace("./support")}
+              onPress={() => router.push("./support")}
             />
             <SettingsOption
               icon={<FontAwesome5 name="sign-out-alt" size={20} color="#090040" />}

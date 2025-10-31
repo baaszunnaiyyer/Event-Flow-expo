@@ -82,7 +82,7 @@ const TeamRequestItem: React.FC<TeamRequestItemProps> = ({
     height: itemHeight.value,
     opacity: opacity.value,
     marginVertical: 10,
-  }));
+  }));    
 
   return (
     <Animated.View style={[styles.container, rContainerStyle]}>
@@ -99,20 +99,33 @@ const TeamRequestItem: React.FC<TeamRequestItemProps> = ({
         onGestureEvent={panGesture}
       >
         <Animated.View style={[styles.card, rStyle]}>
-          <Text style={styles.tag}>{request.branch === null ? "Contact" : "Team"}</Text>
-          {request.branch !== null ? (
-            <Text style={styles.title}>{request.branch.team.team_name}</Text>
-          ):(
-            <Text style={[styles.title, {marginBottom: 10}]}>{request.sender.name}</Text>
+          <Text style={styles.tag}>
+            {request.request_type === "team" ? "Team": "Contact"}
+          </Text>
+
+          {request.request_type === "team" ? (
+            <Text style={styles.title}>
+              {String( request.request_type === "team" ? request.branch?.team?.team_name ?? request.branch?.branch_name  : request.sender ? request.sender?.name : "Unnamed")}
+            </Text>
+          ) : (
+            <Text style={[styles.title, { marginBottom: 10 }]}>
+              {String(request.sender?.name ?? "Unknown Sender")}
+            </Text>
           )}
-          {request.branch !== null ? (
-            <Text style={styles.description}>For Branch : {request.branch.branch_description} </Text>
-          )
-          :
-          (
-            <Text style={styles.description}>Email : {request.sender.email}</Text>
+
+          {request.request_type === "team" ? (
+            <Text style={styles.description}>
+              For Branch: {String(request.branch?.branch_description ?? "No description")}
+            </Text>
+          ) : (
+            <Text style={styles.description}>
+              Email: {String(request.sender?.email ?? "No email")}
+            </Text>
           )}
-          {request.branch !== null && <Text style={styles.from}>From: {request.sender.name}</Text>}
+
+          {request.request_type === "team" && (
+            <Text style={styles.from}>From: {String(request.sender?.name ?? "Unknown")}</Text>
+          )}
         </Animated.View>
       </PanGestureHandler>
     </Animated.View>

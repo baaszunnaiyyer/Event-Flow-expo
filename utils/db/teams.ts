@@ -1,7 +1,81 @@
 import Toast from "react-native-toast-message";
 import { db } from "./schema";
 import { Team, TeamMember } from "@/types/model";
+import { syncTable, upsertTable } from "./SyncDB";
+import { queueDB } from "./DatabaseQueue";
 
+export async function SyncTeamRequstWithNestedData(teamData : any) {
+
+  //sync all the TeamRequests At once
+  await queueDB(()=>
+    syncTable(
+      "join_requests",
+      ["request_id"],
+      teamData,
+      [
+        "request_id", "user_id", "sent_by", "request_type", "status", "added_at", "branch_id"
+      ]
+    )
+  )
+
+  for(const team of teamData){
+    if(team.branch){
+      queueDB(()=>
+        upsertTable(
+          "branches",
+          ["branch_id"],
+          [team.branch],
+          [
+            "branch_id", "team_id", "parent_branch_id", "branch_name", "branch_description", "created_by", "created_at", "updated_at"
+          ]
+        )
+      )
+      // if(team.branch.team){
+      //   queueDB(()=>
+      //   upsertTable(
+      //     "teams",
+      //     ["team_id"],
+      //     [team.branch.team],
+      //     [
+      //       "team_id", "team_name", "team_description", "joined_at"
+      //     ]
+      //   )
+      // )
+      // }
+    }
+
+    if(team.sender){
+      queueDB(()=>
+        upsertTable(
+          "users",
+          ["user_id", "email"],
+          [team.sender],
+          [
+            "user_id",
+            "name", 
+            "email", 
+            "phone", 
+            "date_of_birth", 
+            "gender", 
+            "country", 
+            "is_private", 
+            "availability_day_of_week", 
+            "availability_start_time", 
+            "availability_end_time", 
+            "timezone", 
+            "created_at", 
+            "updated_at", 
+            "status"
+          ]
+        )
+      )
+
+    }
+
+
+  }
+
+}
 
 export async function getAllTeam() {
   try {

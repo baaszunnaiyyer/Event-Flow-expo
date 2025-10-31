@@ -15,6 +15,8 @@ import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "@/utils/constants";
 import Toast from "react-native-toast-message";
 import { PRIMARY_COLOR } from "@/constants/constants";
+import { db } from "@/utils/db/schema";
+import { BranchMember, TeamMember } from "@/types/model";
 
 type User = {
   user_id: string;
@@ -28,16 +30,18 @@ type EventState = "Todo" | "InProgress" | "Completed";
 type Team = {
   team_id: string;
   team_name: string;
+  team_members : TeamMember | unknown | null;
 };
 
 type Branch = {
   branch_id: string;
   branch_name: string;
+  branch_members : Branch| unknown | null, 
 };
 
 type EventMember = {
   user_id: string;
-  user: User;
+  user: User | null;
 };
 
 type Event = {
@@ -50,15 +54,24 @@ type Event = {
   state: string;
   location?: string;
   created_by: string;
-  creator: User;
+  creator: User | null;
   team?: Team | null;
   branch?: Branch | null;
-  event_members: EventMember[];
+  branch_id? : string | null; 
+  team_id? : string | null;
+  event_members: EventMember[] | null;
   is_recurring: boolean;
   frequency?: "Daily" | "Weekly" | "Monthly" | "Yearly";
   interval?: number;
   by_day?: string[];
   until?: string;
+};
+
+type FormattedEvent = Event & {
+  branch: (Branch & { branch_members?: BranchMember[] }) | null;
+  creator: User | null;
+  event_members: (EventMember & { user?: User | null })[] | null;
+  team: (Team & { team_members?: TeamMember[] }) | null;
 };
 
 export default function EventDetailScreen() {
@@ -70,51 +83,86 @@ export default function EventDetailScreen() {
   const [trigger, setTrigger] = useState(false);
   const [buttonLoading, setButtonLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false)
+  const [edit, setEdit] = useState(false)
 
 
   useEffect(() => {
-  const fetchEventDetails = async () => {
-    setLoading(true);
-    try {
-      const token = await SecureStore.getItemAsync("userToken");
-      const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
-        headers: { Authorization: `${token}` },
-      });
+    const fetchEventDetails = async () => {
+      setLoading(true);
+      try {
+        const SQLitedata = await db.getFirstAsync<any>("SELECT * FROM events WHERE event_id = ?", [String(eventId)])
+        const Foramted : any = {
+          ...SQLitedata,
+          branch : SQLitedata?.branch_id
+            ? await db.getFirstAsync<Branch>("SELECT * FROM branches WHERE branch_id = ? ", [SQLitedata.branch_id])
+            : null,
+          creator : SQLitedata?.created_by
+            ? await db.getFirstAsync<User>("SELECT * FROM users WHERE user_id = ?", [SQLitedata.created_by])
+            : null,
+          event_members : SQLitedata?.event_id 
+            ? await db.getAllAsync<EventMember>("SELECT * FROM event_members WHERE event_id = ?", [SQLitedata.event_id])
+            : null,
+          team : SQLitedata?.team_id
+            ? (await db.getFirstAsync<Team>("SELECT * FROM teams WHERE team_id = ?", [SQLitedata.team_id]))
+            : null,
+          by_day : SQLitedata.by_day !== "[]"
+            ? SQLitedata.by_day.replace(/^\[|\]$/g, "").split(",").map((day : any) => day.trim())
+            : [],
+          is_recurring : Boolean(SQLitedata.is_recurring)
+        }        
 
-      if(!res.ok){
-        Toast.show({type: 'error', text1 : "Error" , text2 : "Error Fetching data of this event"})
+        if(Foramted?.event_members)
+        {
+          for(const e of Foramted.event_members){
+            e.user = await db.getFirstAsync("SELECT * FROM users WHERE user_id = ?", [e.user_id])
+          }
+        }
+        if(Foramted?.team){
+          Foramted.team.team_members = await db.getAllAsync("SELECT * FROM team_members WHERE team_id = ?", [Foramted.team.team_id])
+        }
+        if(Foramted?.branch){
+          Foramted.branch.branch_members = await db.getAllAsync("SELECT * FROM branch_members WHERE branch_id = ?", [Foramted.branch.branch_id])
+        }        
+        // console.log(Foramted);
+        // const token = await SecureStore.getItemAsync("userToken");
+        // const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+        //   headers: { Authorization: `${token}` },
+        // });
+
+        // if(!res.ok){
+        //   Toast.show({type: 'error', text1 : "Error" , text2 : "Error Fetching data of this event"})
+        // }
+
+        const data = Foramted;                                
+        setEvent(data);
+
+        const userId = (await SecureStore.getItemAsync("userId"))?.trim();
+
+        if(data.team && data.branch){
+          // ✅ Safely check both team and branch
+          const teamAdmin = data?.team?.team_members?.some(
+            (member: any) => member.user_id === userId && member.role === "admin"
+          );
+    
+          const branchAdmin = data?.branch?.branch_members?.some(
+            (member: any) => member.user_id === userId && member.role === "admin"
+          );
+    
+          const isAdmin = Boolean(teamAdmin || branchAdmin);
+    
+          setIsAdmin(isAdmin);
+        }else{
+          setIsAdmin(true)
+        }
+      } catch (err) {
+        Alert.alert("Error fetching event details.");
+      } finally {
+        setLoading(false);
       }
-
-      const data = await res.json();
-      setEvent(data);
-
-      const userId = (await SecureStore.getItemAsync("userId"))?.trim();
-
-      if(data.team && data.branch){
-        // ✅ Safely check both team and branch
-        const teamAdmin = data?.team?.team_members?.some(
-          (member: any) => member.user_id === userId && member.role === "admin"
-        );
-  
-        const branchAdmin = data?.branch?.branch_members?.some(
-          (member: any) => member.user_id === userId && member.role === "admin"
-        );
-  
-        const isAdmin = Boolean(teamAdmin || branchAdmin);
-  
-        setIsAdmin(isAdmin);
-      }else{
-        setIsAdmin(true)
-      }
-    } catch (err) {
-      Alert.alert("Error fetching event details.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   fetchEventDetails();
-}, [eventId, trigger, isAdmin]); // ✅ no Admin / isAdmin here
+}, [eventId, trigger]); // ✅ no Admin / isAdmin here
 
 
 
@@ -172,6 +220,8 @@ export default function EventDetailScreen() {
         throw new Error(`Failed to update event state (${res.status}): ${errorText}`);
       }
 
+      db.runAsync("UPDATE events SET state = ? WHERE event_id  = ?", [newState, eventId])
+
       setTrigger((prev) => !prev);
       Toast.show({
         type: "success",
@@ -202,7 +252,14 @@ export default function EventDetailScreen() {
         headers: { Authorization: `${token}` },
       });
       if (res.ok) {
-        Alert.alert("Event deleted");
+        Toast.show({
+          type: "info",
+          text1: "Event Deleted",
+          text2: "Successfully Deleted Event!"
+        });
+
+        await db.runAsync("DELETE FROM events WHERE event_id = ?", [String(eventId)]);
+
         router.back();
       } else {
         Alert.alert("Failed to delete event");
@@ -230,9 +287,9 @@ export default function EventDetailScreen() {
       {isAdmin && 
       <TouchableOpacity
         style={styles.editButton}
-        onPress={() => router.back()}
+        onPress={() => setEdit(true)}
       >
-        <Ionicons name="create-outline" size={24} color="#000" />
+        {/* <Ionicons name="create-outline" size={24} color="#000" /> */}
       </TouchableOpacity>
       }
 
@@ -266,7 +323,11 @@ export default function EventDetailScreen() {
           )}
 
           <Text style={styles.label}>Created By</Text>
-          <Text style={styles.text}>{event.creator.name}</Text>
+          <Text style={styles.text}>{event.creator?.name}</Text>
+          <View style={styles.divider} />
+
+          <Text style={styles.label}>Category</Text>
+          <Text style={styles.text}>{event.category}</Text>
           <View style={styles.divider} />
 
           {event.is_recurring && (
@@ -282,7 +343,6 @@ export default function EventDetailScreen() {
                 </Text>
               )}
 
-              {/* Show days only if weekly */}
               {event.frequency === "Weekly" && event.by_day && event.by_day.length > 0 && (
                 <View style={styles.byDayContainer}>
                   {event.by_day.map((day, idx) => (
@@ -310,14 +370,14 @@ export default function EventDetailScreen() {
         {/* Event Members Section */}
         <Text style={styles.sectionTitle}>Event Members</Text>
         <View style={styles.membersContainer}>
-          {event.event_members.map((member, idx) => (
+          {event.event_members?.map((member, idx) => (
             <View key={idx} style={styles.memberCard}>
               <View style={styles.avatarCircle}>
                 <Text style={styles.avatarText}>
-                  {member.user.name.charAt(0).toUpperCase()}
+                  {member.user?.name.charAt(0).toUpperCase()}
                 </Text>
               </View>
-              <Text style={styles.memberName}>{member.user.name}</Text>
+              <Text style={styles.memberName}>{member.user?.name}</Text>
             </View>
           ))}
         </View>
@@ -326,66 +386,100 @@ export default function EventDetailScreen() {
         {/* Footer Buttons */}
         {isAdmin && 
         <View style={styles.footer}>
-          {
-            !event.is_recurring &&
+          {edit ? (
+            <>
               <View style={{flexDirection: 'row', gap: 5}}>
-                <TouchableOpacity
-                    style={styles.statusButton}
+                    <TouchableOpacity
+                        style={styles.statusButton}
+                        onPress={() => setEdit(false)}
+                        disabled={buttonLoading}
+                      >
+                        {buttonLoading ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={styles.buttonText}>
+                            Save
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+
+                    <TouchableOpacity 
+                    style={styles.deleteButton}
+                    onPress={() => setEdit(false)}>
+                      {buttonLoading ? (
+                        <ActivityIndicator color="#fff"/>
+                      ): (<Text style={styles.buttonText}>
+                        Cancle
+                      </Text>)}
+                    </TouchableOpacity>
+                  </View>
+            </>
+          ) : (
+            <>
+              {
+                !event.is_recurring &&
+                  <View style={{flexDirection: 'row', gap: 5}}>
+                    <TouchableOpacity
+                        style={styles.statusButton}
+                        onPress={() => {
+                          event.state === "Todo"
+                            ? updateEventState(event.event_id, "Completed")
+                            : event.state === "Completed"
+                            ? updateEventState(event.event_id, "InProgress")
+                            : updateEventState(event.event_id, "Todo");
+                        }}
+                        disabled={buttonLoading}
+                      >
+                        {buttonLoading ? (
+                          <ActivityIndicator color="#fff" />
+                        ) : (
+                          <Text style={styles.buttonText}>
+                            {event.state === "Todo"
+                              ? "Completed"
+                              : event.state === "Completed"
+                              ? "InProgress"
+                              : "Todo"}
+                          </Text>
+                        )}
+                      </TouchableOpacity>
+
+                    <TouchableOpacity 
+                    style={styles.deleteButton}
                     onPress={() => {
                       event.state === "Todo"
-                        ? updateEventState(event.event_id, "Completed")
-                        : event.state === "Completed"
-                        ? updateEventState(event.event_id, "InProgress")
-                        : updateEventState(event.event_id, "Todo");
-                    }}
-                    disabled={buttonLoading}
-                  >
-                    {buttonLoading ? (
-                      <ActivityIndicator color="#fff" />
-                    ) : (
-                      <Text style={styles.buttonText}>
-                        {event.state === "Todo"
-                          ? "Completed"
-                          : event.state === "Completed"
-                          ? "InProgress"
-                          : "Todo"}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-
-                <TouchableOpacity 
+                      ? updateEventState(event.event_id, "InProgress")
+                      : event.state === "Inprogress"
+                      ? updateEventState(event.event_id, "Completed")
+                      : updateEventState(event.event_id, "Todo")
+                    }}>
+                      {buttonLoading ? (
+                        <ActivityIndicator color="#fff"/>
+                      ): (<Text style={styles.buttonText}>
+                        {event.state == "Todo"
+                        ? "In Progress"
+                        : event.state == "InProgress"
+                        ? "Completed"
+                        : "Todo"}
+                      </Text>)}
+                    </TouchableOpacity>
+                  </View>
+              }
+              
+              <TouchableOpacity
                 style={styles.deleteButton}
-                onPress={() => {
-                  event.state === "Todo"
-                  ? updateEventState(event.event_id, "InProgress")
-                  : event.state === "Inprogress"
-                  ? updateEventState(event.event_id, "Completed")
-                  : updateEventState(event.event_id, "Todo")
-                }}>
-                  {buttonLoading ? (
-                    <ActivityIndicator color="#fff"/>
-                  ): (<Text style={styles.buttonText}>
-                    {event.state == "Todo"
-                    ? "In Progress"
-                    : event.state == "InProgress"
-                    ? "Completed"
-                    : "Todo"}
-                  </Text>)}
-                </TouchableOpacity>
-              </View>
-          }
+                onPress={handleDelete}
+                disabled={buttonLoading}
+              >
+                {buttonLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Delete Event</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )
           
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={handleDelete}
-            disabled={buttonLoading}
-          >
-            {buttonLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Delete Event</Text>
-            )}
-          </TouchableOpacity>
+          }
         </View>
         
         }

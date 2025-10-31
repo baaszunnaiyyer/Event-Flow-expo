@@ -15,6 +15,7 @@ import { API_BASE_URL } from "@/utils/constants";
 import { Ionicons } from "@expo/vector-icons";
 import { BACKGROUND_COLOR, PRIMARY_COLOR } from "@/constants/constants";
 import { router } from "expo-router";
+import { db } from "@/utils/db/schema";
 
 interface Branch {
   branch_id: string;
@@ -83,6 +84,18 @@ const UserDetailScreen: React.FC = () => {
     setAdmin((isAdmin == "true"))
     const getTeam = async () => {
       try {
+
+        let team = await db.getFirstAsync("SELECT * FROM teams WHERE team_id = ?",[team_id]) as  any ;
+        const branch = await db.getAllAsync("SELECT * FROM branches WHERE team_id = ?",[team_id]) as Branch[];
+        const branch_members = await db.getAllAsync("SELECT * FROM branch_members WHERE team_id = ?",[team_id]) as BranchMember[];
+        if (team) {
+          (team as any).branches = branch;
+          (team as any).branch_members = branch_members;
+        }
+        if(team && team.branch_members && team.branches){
+          setTeamData(team);
+        }
+
         const token = await SecureStore.getItemAsync("userToken");
         const res = await fetch(`${API_BASE_URL}/teams/${team_id}`, {
           headers: {
@@ -106,6 +119,12 @@ const UserDetailScreen: React.FC = () => {
 
     const getMembers = async () => {
       try {
+        const LocalData = await db.getAllAsync("SELECT u.*, t.role FROM users as u LEFT JOIN team_members as t ON u.user_id = t.user_id WHERE t.team_id  = ?",[team_id]) as any;
+        if(LocalData.length > 0){
+          setMembers(LocalData)
+          setLoading(false);         
+        }
+
         const token = await SecureStore.getItemAsync("userToken");
         let url = `${API_BASE_URL}/teams/${team_id}/members`
         if(branch_id){

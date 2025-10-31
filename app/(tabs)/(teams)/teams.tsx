@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Pressable,
   SafeAreaView,
+  RefreshControl,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -15,6 +16,9 @@ import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "@/utils/constants";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { PRIMARY_COLOR } from "@/constants/constants";
+import { syncTable, upsertTable } from "@/utils/db/SyncDB";
+import { db } from "@/utils/db/schema";
+import { queueDB } from "@/utils/db/DatabaseQueue";
 
 // types.ts
 interface Team {
@@ -39,39 +43,150 @@ function TeamsAndContacts() {
   const [activeTab, setActiveTab] = useState<"teams" | "contacts">("teams");
   const [teams, setTeams] = useState<Team[]>([]);
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const hasFetched = useRef(false);
+
+  const fetchFreshData = async () => {
+      try {
+        const myUserId = await SecureStore.getItemAsync("userId");
+        const token = await SecureStore.getItemAsync("userToken");
+        if (!token) {
+          console.warn("User token missing");
+          setLoading(false);
+          return;
+        }
+
+        const [teamsRes, contactsRes] = await Promise.all([
+          fetch(`${API_BASE_URL}/teams`, {
+            headers: { Authorization: `${token}` },
+          }),
+          fetch(`${API_BASE_URL}/contacts`, {
+            headers: { Authorization: `${token}` },
+          }),
+        ]);
+
+        if (!teamsRes.ok || !contactsRes.ok) {
+          throw new Error("Network error fetching teams or contacts");
+        }
+
+        const [teamsData, contactsData] = await Promise.all([
+          teamsRes.json(),
+          contactsRes.json(),
+        ]);
+
+        // STEP 3: Sync new data into SQLite
+        await queueDB(() =>
+          upsertTable("teams", ["team_id"], teamsData, [
+            "team_id",
+            "team_name",
+            "team_description",
+            "joined_at",
+          ])
+        );
+
+        const contactDataFormatted = contactsData.map((contact: Contact) => ({
+          user_id: myUserId,
+          contact_user_id: contact.user_id,
+        }));
+
+        await queueDB(() =>
+          syncTable("contacts", ["user_id", "contact_user_id"], contactDataFormatted, [
+            "user_id",
+            "contact_user_id",
+          ])
+        );
+
+        await queueDB(() =>
+          upsertTable("users", ["user_id"], contactsData, [
+            "country",
+            "date_of_birth",
+            "email",
+            "gender",
+            "name",
+            "phone",
+            "user_id",
+          ])
+        );
+
+        // STEP 4: Update state with fresh data
+
+        setTeams(teamsData || []);
+        setContacts(contactsData || []);
+      } catch (err) {
+        console.error("❌ Fresh data fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+  };
 
   useFocusEffect(
     useCallback(() => {
+      let isActive = true;
+
+      if (hasFetched.current) return; // 🚫 Prevent duplicate call
+      hasFetched.current = true;
+
+      const fetchLocalData = async (myUserId: string) => {
+        try {
+          // STEP 1: Load from local DB immediately
+          const localTeams = await db.getAllAsync(
+            `SELECT t.* 
+            FROM teams AS t 
+            LEFT JOIN team_members AS tm 
+            ON t.team_id = tm.team_id 
+            WHERE tm.user_id = ?`,
+            [myUserId]
+          ) as Team[];
+
+          const localContacts = await db.getAllAsync(
+            `SELECT u.* 
+            FROM users AS u 
+            INNER JOIN contacts AS c 
+            ON u.user_id = c.contact_user_id 
+            WHERE c.user_id = ?`,
+            [myUserId]
+          ) as Contact[];
+
+          if (isActive) {
+            setContacts(localContacts);
+            if (localTeams.length > 0) {
+              setTeams(localTeams);
+              setLoading(false);
+            }
+          }
+        } catch (err) {
+          console.error("❌ Local data load error:", err);
+        }
+      };
+
       const fetchData = async () => {
         try {
-          const token = await SecureStore.getItemAsync("userToken");
-
-          const [teamsRes, contactsRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/teams`, {
-              headers: { Authorization: `${token}` },
-            }),
-            fetch(`${API_BASE_URL}/contacts`, {
-              headers: { Authorization: `${token}` },
-            }),
-          ]);
-
-          const teamsData = await teamsRes.json();
-          const contactsData = await contactsRes.json();
-
-          setTeams(teamsData || []);
-          setContacts(contactsData || []);
+          setLoading(true);
+          const myUserId = await SecureStore.getItemAsync("userId");
+          if (!myUserId) throw new Error("User ID missing");
+          await fetchLocalData(myUserId); // Load from SQLite
         } catch (err) {
-          console.error("Fetch error:", err);
-        } finally {
-          setLoading(false);
+          console.error("❌ Fetch error:", err);
         }
       };
 
       fetchData();
+
+      // Cleanup
+      return () => {
+        isActive = false;
+        hasFetched.current = false;
+      };
     }, [activeTab])
   );
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchFreshData(); // call the hook’s reload function
+    setRefreshing(false);
+  };
 
   const filteredTeams = teams.filter((team) =>
     team.team_name.toLowerCase().includes(search.toLowerCase())
@@ -148,7 +263,7 @@ function TeamsAndContacts() {
       {loading ? (
         <ActivityIndicator size="large" color={PRIMARY_COLOR} style={{ marginTop: 30 }} />
       ) : (
-        <ScrollView contentContainerStyle={{ paddingBottom: 20 }}>
+        <ScrollView contentContainerStyle={{ paddingBottom: 20 }} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}>
           {activeTab === "teams"
             ? filteredTeams.map(renderTeamCard)
             : filteredContacts.map(renderContactCard)}
