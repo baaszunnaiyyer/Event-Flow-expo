@@ -1,10 +1,13 @@
 // hooks/useRequestsData.ts
-import { useState, useCallback } from "react";
+import { Event, TeamRequest } from "@/types/model";
+import { API_BASE_URL } from "@/utils/constants";
+import { queueDB } from "@/utils/db/DatabaseQueue";
+import { db } from "@/utils/db/schema";
+import { syncTable, upsertTable } from "@/utils/db/SyncDB";
+import { SyncTeamRequstWithNestedData } from "@/utils/db/teams";
 import { useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import { API_BASE_URL } from "@/utils/constants";
-import { Event, TeamRequest } from "@/types/model";
-import { db } from "@/utils/db/schema";
+import { useCallback, useState } from "react";
 
 export function useRequestsData(activeTab: "event" | "team") {
   const [loading, setLoading] = useState(true);
@@ -28,7 +31,27 @@ export function useRequestsData(activeTab: "event" | "team") {
       });
       if (!res.ok) throw new Error(`Failed to fetch ${activeTab} requests`);
 
-      const raw = await res.json();            
+      const raw = await res.json();
+      
+      if(activeTab !== "event"){
+        await SyncTeamRequstWithNestedData(raw)
+        const TeamsFromReq = raw.map((r : any) => {
+          if(r.branch?.team){
+            return r.branch.team;
+          }
+          return null;
+        })          
+
+        queueDB(()=>
+          upsertTable("teams", ["team_id"], [...TeamsFromReq.filter((f: any) => f !== null)],["team_id", "team_name", "team_description", "joined_at"])
+        )  
+      }else{
+        await queueDB(()=>
+          syncTable("event_requests", ["event_id", "user_id"], raw, [
+            "event_id", "user_id", "status"
+          ])
+        )
+      }
       const formatted = raw.map((item: any, index: number) => ({
         ...item,
         index,
@@ -123,21 +146,44 @@ export function useRequestsData(activeTab: "event" | "team") {
           
           const data = await db.getAllAsync<any>(query);
           if (activeTab === "event") {
-            let result = data;
-            result = data.map(r => ({
+            let result = data || [];
+            result = result.map((r: any) => ({
               ...r,
               creator: r.creator ? JSON.parse(r.creator) : null
             }));
-            setEventTasks(result)
-            setLoading(false)
-          }else{
-            let result = await JSON.parse(data[0].requests);            
-            setTeamRequests(result);
-            setLoading(false)
+            if (isMounted) {
+              setEventTasks(result);
+              // If we have cached data, show it immediately
+              if (result.length > 0) {
+                setLoading(false);
+              }
+            }
+          } else {
+            let result = data && data.length > 0 && data[0].requests 
+              ? JSON.parse(data[0].requests) 
+              : [];
+            if (isMounted) {
+              setTeamRequests(result);
+              // If we have cached data, show it immediately
+              if (result.length > 0) {
+                setLoading(false);
+              }
+            }
           }
           
         } catch (err) {
           console.warn("Error loading cached requests:", err);
+          // Set empty arrays on error
+          if (isMounted) {
+            if (activeTab === "event") {
+              setEventTasks([]);
+            } else {
+              setTeamRequests([]);
+            }
+          }
+          setLoading(false);
+        }finally {
+          setLoading(false);
         }
       };
 
@@ -147,7 +193,7 @@ export function useRequestsData(activeTab: "event" | "team") {
       return () => {
         isMounted = false;
       };
-    }, [activeTab])
+    }, [activeTab, fetchFreshData])
   );
 
   return { loading, eventTasks, teamRequests, reload: fetchFreshData };

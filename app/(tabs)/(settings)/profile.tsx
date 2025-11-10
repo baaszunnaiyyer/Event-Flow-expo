@@ -1,14 +1,13 @@
-import React, { useEffect, useState } from "react";
-import { View, Text, TextInput, StyleSheet, ScrollView, TouchableOpacity, KeyboardAvoidingView, Alert, } from "react-native";
-import { Switch } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import { Ionicons } from "@expo/vector-icons";
-import { API_BASE_URL } from "../../../utils/constants";
-import * as SecureStore from "expo-secure-store";
-import { router } from "expo-router";
 import { db } from "@/utils/db/schema";
-import Toast from "react-native-toast-message";
 import { upsertTable } from "@/utils/db/SyncDB";
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import React, { useEffect, useState } from "react";
+import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View, } from "react-native";
+import Toast from "react-native-toast-message";
+import { API_BASE_URL } from "../../../utils/constants";
 
 interface ProfileForm {
   user_id: string
@@ -86,13 +85,24 @@ export default function ProfileScreen() {
       const userId = await SecureStore.getItemAsync("userId");
       if (!token || !userId) throw new Error("Missing auth details");
 
+      // 👇 Prepare the payload with properly formatted date_of_birth
+      const payload = {
+        ...form,
+        // Ensure date_of_birth is in ISO datetime format
+        date_of_birth: form.date_of_birth 
+          ? (form.date_of_birth.includes('T') 
+              ? form.date_of_birth 
+              : new Date(form.date_of_birth + 'T00:00:00.000Z').toISOString())
+          : form.date_of_birth,
+      };
+
       const res = await fetch(`${API_BASE_URL}/settings`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
           Authorization: `${token}`,
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -122,7 +132,7 @@ export default function ProfileScreen() {
         router.replace("./settings");
       } else {
         console.error("Failed to update:", data);
-        Alert.alert("Error", "Failed to update profile");
+        Alert.alert("Error", `Failed to update profile: ${data.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error("Error in update request:", error);
@@ -136,9 +146,17 @@ export default function ProfileScreen() {
 
   const handleDateChange = (event: any, date: Date | undefined, key: keyof ProfileForm) => {
     if (date) {
-      const formatted =
-        key === "date_of_birth" ? date.toISOString().split("T")[0] : date.toISOString();
-      handleChange(key, formatted);
+      if (key === "date_of_birth") {
+        // 👇 Convert to ISO datetime string with time set to midnight UTC
+        const dateAtMidnight = new Date(date);
+        dateAtMidnight.setHours(0, 0, 0, 0);
+        const formatted = dateAtMidnight.toISOString();
+        handleChange(key, formatted);
+      } else {
+        // For time fields, use full ISO string
+        const formatted = date.toISOString();
+        handleChange(key, formatted);
+      }
     }
   };
   

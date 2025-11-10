@@ -23,6 +23,7 @@ import { upsertTable } from "@/utils/db/SyncDB";
 import { db } from "@/utils/db/schema";
 import { queueDB } from "@/utils/db/DatabaseQueue";
 import { BranchMember } from "@/types/model";
+import LottieView from "lottie-react-native";
 
 interface Branch {
   branch_id: string;
@@ -392,7 +393,8 @@ const Team = () => {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator color={PRIMARY_COLOR} size="large" />
+        <ActivityIndicator color={PRIMARY_COLOR}/>
+        <Text style={{fontSize : 16, fontWeight: "800"}}>Getting Your Team</Text>
       </View>
     );
   }
@@ -635,6 +637,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    backgroundColor : BACKGROUND_COLOR
   },
   centered: {
     flex: 1,

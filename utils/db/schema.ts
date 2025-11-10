@@ -2,12 +2,18 @@
 import * as SQLite from "expo-sqlite";
 
 export const db = SQLite.openDatabaseSync("EventFlowDB.db");
+let isInitialized = false;
 
 // Run this on app startup
 export async function initDatabase() {
   // ✅ Enable foreign keys (important: must be ON for constraints to work)
-  await db.execAsync("PRAGMA foreign_keys = ON;");
+  // await db.execAsync("PRAGMA foreign_keys = ON;");
 
+
+  if (isInitialized) {
+    return;
+  }
+  try {
   await db.execAsync(`
     -- USERS
     CREATE TABLE IF NOT EXISTS users (
@@ -145,4 +151,8 @@ export async function initDatabase() {
       FOREIGN KEY (contact_user_id) REFERENCES users(user_id) ON DELETE CASCADE
     );
   `);
+  isInitialized = true;
+  } catch (error) {
+    console.error("❌ Database initialization error:", error);
+  }
 }

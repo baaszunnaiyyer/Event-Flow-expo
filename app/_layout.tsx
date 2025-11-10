@@ -1,15 +1,17 @@
-import { Stack } from "expo-router";
-import { ActivityIndicator, View, StyleSheet, Platform } from "react-native";
-import { useEffect, useState, Suspense, useLayoutEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "@/utils/constants";
-import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
-import { useFonts } from 'expo-font';
-import * as Notifications from "expo-notifications";
-import { SQLiteProvider } from "expo-sqlite";
+import { initDatabase } from "@/utils/db/schema";
+import { requestNotificationPermissions } from "@/utils/Notifications/notification";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp } from '@react-native-firebase/app';
 import { getMessaging, onMessage, onNotificationOpenedApp, setBackgroundMessageHandler } from '@react-native-firebase/messaging';
+import { useFonts } from 'expo-font';
+import * as Notifications from "expo-notifications";
+import { Stack } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { SQLiteProvider } from "expo-sqlite";
+import { Suspense, useEffect, useLayoutEffect, useState } from "react";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -21,23 +23,6 @@ Notifications.setNotificationHandler({
   }),
 });
 
-// const loadData = async () =>{
-//   const FileName = 'EventFlowDB.db'
-//   const dbAssests = require("../assets/LocalDatabase/EventFlowDB.db")
-//   const DBUri = Asset.fromModule(dbAssests).uri; 
-//   const dbFilePath = `${FileSystem.documentDirectory}SQLite/${FileName}`;
-
-
-//   const fileInfo = await FileSystem.getInfoAsync(dbFilePath);
-//   if (!fileInfo.exists) {
-//     await FileSystem.makeDirectoryAsync(
-//       `${FileSystem.documentDirectory}SQLite`,
-//       {intermediates : true}
-//     )
-//     await FileSystem.downloadAsync(DBUri, dbFilePath)
-//   }
-
-// }
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
@@ -47,6 +32,38 @@ export default function RootLayout() {
 
   const [initialRoute, setInitialRoute] = useState<string | null>(null);
   const [loaded, setLoaded] = useState<boolean>(false);
+  const [dbInitialized, setDbInitialized] = useState<boolean>(false);
+  const [text, setText] = useState<string>("Authenticating Your Credentials");
+
+  useEffect(()=>{
+    setTimeout(()=>{
+      setText('Still loading... please check your internet connection.')
+    }, 10000)
+  })
+
+  // Initialize database ONCE when component mounts
+  useEffect(() => {
+    let mounted = true;
+    const initializeDB = async () => {
+      try {
+        await initDatabase();
+        if (mounted) {
+          setDbInitialized(true);
+        }
+      } catch (error) {
+        console.error("❌ Database initialization error:", error);
+        // Still proceed even if init fails (tables might already exist)
+        if (mounted) {
+          setDbInitialized(true);
+        }
+      }
+    };
+    initializeDB();
+    requestNotificationPermissions();
+    return () => {
+      mounted = false;
+    };
+  }, []); // Only run once on mount
 
   
   useLayoutEffect(() => {
@@ -102,7 +119,7 @@ export default function RootLayout() {
 
         if (!hasOnboarded) {
           setInitialRoute("(onboarding)");
-        } else if (isTokenValid || userId) {
+        } else if (isTokenValid) {
           setInitialRoute("(tabs)");
         } else {
           setInitialRoute("(auth)");
@@ -118,10 +135,12 @@ export default function RootLayout() {
     checkInitialRoute();    
   }, []);
 
-  if (!initialRoute || !fontsLoaded || !loaded) {
+  // Wait for database initialization before rendering app
+  if (!initialRoute || !fontsLoaded || !loaded || !dbInitialized) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#090040" />
+        <ActivityIndicator size="large" color="#090040"/>
+        <Text style={{fontWeight: '800'}}>{text}</Text>
       </View>
     );
   }
@@ -130,8 +149,8 @@ export default function RootLayout() {
     <>
       <Suspense>
         <SQLiteProvider
-        databaseName="EventFlowDB.db"
-        useSuspense>
+          databaseName="EventFlowDB.db"
+          useSuspense>
           {initialRoute &&
             <Stack initialRouteName={initialRoute}>
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
@@ -151,7 +170,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(253, 253, 253, 1)"
   },
 });
 

@@ -9,7 +9,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   Image,
   ActivityIndicator,
 } from "react-native";
@@ -22,6 +21,9 @@ import * as WebBrowser from "expo-web-browser";
 import { GoogleSignin, isErrorWithCode, statusCodes } from "@react-native-google-signin/google-signin";
 import Toast from "react-native-toast-message";
 import { getAuth, GoogleAuthProvider, signInWithCredential } from "@react-native-firebase/auth";
+import { Creator } from "@/types/model";
+import { queueDB } from "@/utils/db/DatabaseQueue";
+import { upsertTable } from "@/utils/db/SyncDB";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -74,7 +76,34 @@ export default function SignUpScreen() {
           
         } else if (response.status === 200) {
           await SecureStore.setItemAsync("userToken", data.token);
-          router.replace("/(tabs)");
+          await SecureStore.setItemAsync("userId", data.user.user_id)
+
+          const res = await fetch(`${API_BASE_URL}/settings`, { headers: { Authorization: data.token } })
+          const settingsRes : Creator = await res.json();
+
+          queueDB(()=>
+            upsertTable("users", ["user_id"], [settingsRes], 
+              [
+                "user_id",
+                "name", 
+                "email", 
+                "phone", 
+                "date_of_birth", 
+                "gender", 
+                "country", 
+                "is_private", 
+                "availability_day_of_week", 
+                "availability_start_time", 
+                "availability_end_time", 
+                "timezone", 
+                "created_at", 
+                "updated_at", 
+                "status"
+              ])
+          )
+          
+
+          router.replace("./loading");
         } else {
           Toast.show({
             type : 'error',
@@ -244,7 +273,7 @@ export default function SignUpScreen() {
   };
 
   const handleLoginLink = () => {
-    router.back();
+    router.replace("../(auth)");
   };
 
   return (

@@ -1,13 +1,13 @@
-import { useEffect } from "react";
 import { getApp } from "@react-native-firebase/app";
 import {
+  getInitialNotification,
   getMessaging,
   onMessage,
   onNotificationOpenedApp,
-  getInitialNotification,
   setBackgroundMessageHandler,
 } from "@react-native-firebase/messaging";
 import * as Notifications from "expo-notifications";
+import { useEffect } from "react";
 
 export function useFirebaseNotifications() {
   useEffect(() => {

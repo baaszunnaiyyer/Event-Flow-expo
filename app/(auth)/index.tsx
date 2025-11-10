@@ -1,33 +1,34 @@
-import React, { useEffect, useState } from "react";
-import {
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  View,
-  Text,
-  TextInput,
-  StyleSheet,
-  Image,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
-import { router } from "expo-router";
+import { BACKGROUND_COLOR, PRIMARY_COLOR } from "@/constants/constants";
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
+import React, { useEffect, useLayoutEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { API_BASE_URL } from "../../utils/constants";
-import { BACKGROUND_COLOR, PRIMARY_COLOR } from "@/constants/constants";
 
+import { Creator } from "@/types/model";
+import { queueDB } from "@/utils/db/DatabaseQueue";
+import { upsertTable } from "@/utils/db/SyncDB";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { GoogleAuthProvider, getAuth, signInWithCredential } from '@react-native-firebase/auth';
 import {
   GoogleSignin,
   isErrorWithCode,
   statusCodes,
 } from '@react-native-google-signin/google-signin';
-import { GoogleAuthProvider, getAuth, signInWithCredential } from '@react-native-firebase/auth';
 import Toast from "react-native-toast-message";
-import { Creator } from "@/types/model";
-import { queueDB } from "@/utils/db/DatabaseQueue";
-import { upsertTable } from "@/utils/db/SyncDB";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -73,31 +74,8 @@ export default function LoginScreen() {
       } else if (response.status === 200) {
         await SecureStore.setItemAsync("userToken", data.token);
         await SecureStore.setItemAsync("userId", data.user.user_id)
-        const res = await fetch(`${API_BASE_URL}/settings`, { headers: { Authorization: data.token } })
-        const settingResData: Creator = await res.json();
 
-        queueDB(()=>
-          upsertTable("users", ["user_id"], [settingResData], 
-            [
-              "user_id",
-              "name", 
-              "email", 
-              "phone", 
-              "date_of_birth", 
-              "gender", 
-              "country", 
-              "is_private", 
-              "availability_day_of_week", 
-              "availability_start_time", 
-              "availability_end_time", 
-              "timezone", 
-              "created_at", 
-              "updated_at", 
-              "status"
-            ])
-        )
-
-        router.replace("/(tabs)");
+        router.replace("./loading");
       } else {
         Toast.show({
           type : 'error',
@@ -177,17 +155,22 @@ export default function LoginScreen() {
     }
   }, [password]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const checkToken = async () => {
       const token = await SecureStore.getItemAsync("userToken");
       const id = await SecureStore.getItemAsync("userId")
-      if (token && id) {        
+      const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
+      console.log(hasOnboarded);
+      if(!hasOnboarded){
+        router.replace("/(onboarding)");
+        return;
+      }
+      else if (token && id) {        
         router.replace("/(tabs)");
       }
     };
     checkToken();
   }, []);
-
 
   const handleLogin = async () => {
     if (!email || !password || emailError || passwordError) return;
@@ -207,7 +190,7 @@ export default function LoginScreen() {
         if(data.status === "active"){
           await SecureStore.setItemAsync("userToken", data.token);
           await SecureStore.setItemAsync("userId", data.userId)
-          router.replace("/(tabs)");
+          router.replace("./loading");
         }else if (data.status === "pending"){
           Toast.show({type: 'info', text1 : "Needs Verification", text2: "Please Check Your Email and Activate your account!"})
         }else {

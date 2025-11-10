@@ -3,9 +3,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
 import {
-  StyleSheet,
   SafeAreaView,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
   View,
@@ -27,10 +27,32 @@ function truncateString(str: string, maxLength: number): string {
 }
 
 export default function Example({ events }: { events: EventItem[] }) {
+  // Helper function to add 5 hours to a time string
+  const addFiveHours = (timeString: string): string => {
+    const date = new Date(timeString);
+    date.setHours(date.getHours() + 5);
+    return date.toISOString();
+  };
+
+  // Helper function to format time with +5 hours
+  const formatTime = (timeString: string): string => {
+    const adjustedTime = addFiveHours(timeString);
+    const timePart = adjustedTime.split("T")[1];
+    const [hours, minutes] = timePart.split(":");
+    return `${hours} : ${minutes}`;
+  };
+
+  // Sort events by start_time (earliest first)
+  const sortedEvents = [...(events || [])].sort((a, b) => {
+    const timeA = new Date(a.start_time).getTime();
+    const timeB = new Date(b.start_time).getTime();
+    return timeA - timeB;
+  });
+
   return (
     <SafeAreaView style={{ backgroundColor: BACKGROUND_COLOR }}>
       <ScrollView contentContainerStyle={styles.container}>
-        {events?.map((e :  any, index : number) => {
+        {sortedEvents.map((e :  any, index : number) => {
           return (
             <TouchableOpacity
               key={index}
@@ -39,11 +61,11 @@ export default function Example({ events }: { events: EventItem[] }) {
               }}>
               <View style={styles.card}>
                 <View style={styles.cardIcon}>
-                  <Text style={styles.cardDates}>{e.start_time.split("T")[1].split(":")[0]} : {e.start_time.split("T")[1].split(":")[1]}</Text>
+                  <Text style={styles.cardDates}>{formatTime(e.start_time)}</Text>
                 </View>
 
                 <View style={styles.cardDelimiter}>
-                  {index !== events.length - 1 && (
+                  {index !== sortedEvents.length - 1 && (
                     <View style={styles.cardDelimiterLine} />
                   )}
 
@@ -57,7 +79,7 @@ export default function Example({ events }: { events: EventItem[] }) {
 
                     <Text style={styles.cardSubtitle}>{truncateString(e.description, 30)}</Text>
 
-                    <Text style={styles.cardDates}>End's at : {e.end_time.split("T")[1].split(":")[0]} : {e.end_time.split("T")[1].split(":")[1]}</Text>
+                    <Text style={styles.cardDates}>End's at : {formatTime(e.end_time)}</Text>
                   </View>
 
                   <View style={styles.cardBodyAction}>

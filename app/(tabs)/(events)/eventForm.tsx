@@ -1,23 +1,24 @@
+import { API_BASE_URL } from "@/utils/constants";
+import { RegisterEventNotification } from "@/utils/Notifications/EventNotifications";
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import React, { useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
-  View,
+  Animated,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
-  Pressable,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Platform,
   TouchableOpacity,
-  Animated,
+  View,
 } from "react-native";
-import DateTimePicker from "@react-native-community/datetimepicker";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import * as SecureStore from "expo-secure-store";
-import { API_BASE_URL } from "@/utils/constants";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
 import Toast from "react-native-toast-message";
 
 type StateType = "Todo" | "InProgress" | null;
@@ -32,7 +33,7 @@ interface EventForm {
   location: string;
   is_recurring: boolean;
   frequency: string;
-  interval: number;
+  interval: string;
   by_day: string[];
   until: string;
 }
@@ -51,7 +52,7 @@ export default function EventFormScreen() {
     location: "",
     is_recurring: false,
     frequency: "",
-    interval: 1,
+    interval: "1",
     by_day: [] as string[],
     until: "",
   });
@@ -134,6 +135,11 @@ export default function EventFormScreen() {
         text2 : "please Fill all the required Fields"});
     }
 
+    const payload = {
+      ...form,
+      interval: parseInt(form.interval) <= 0 ? 1 : parseInt(form.interval, 10) || 1,
+    }
+
     try {
       setLoading(true);
       const token = await SecureStore.getItemAsync("userToken");
@@ -144,14 +150,18 @@ export default function EventFormScreen() {
           "Content-Type": "application/json",
           Authorization: token || "",
         },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
-
+      
       if (!res.ok) {
         throw new Error(data?.message || "Failed to create event");
       }
+
+      await RegisterEventNotification(data.event);
+      console.log(data.event.event_id);
+      
 
       Toast.show({
         type: "success",
@@ -168,7 +178,7 @@ export default function EventFormScreen() {
         location: "",
         is_recurring: false,
         frequency: "",
-        interval: 1,
+        interval: "1",
         by_day: [] as string[],
         until: "",
       });
@@ -314,10 +324,11 @@ export default function EventFormScreen() {
               {/* Interval */}
               <TextInput
                 style={styles.input}
+                placeholderTextColor={"#999"}
                 placeholder="Interval (e.g., every 2 days)"
                 keyboardType="numeric"
                 value={form.interval.toString()}
-                onChangeText={(val) => handleChange("interval", parseInt(val) || 1)}
+                onChangeText={(val) => handleChange("interval", val)}
               />
 
               {/* Days (Only if Weekly) */}
@@ -499,6 +510,7 @@ const styles = StyleSheet.create({
     color: "#fff",
   },
   input: {
+    color: "#333",
     borderColor: "#ccc",
     borderWidth: 1,
     borderRadius: 8,

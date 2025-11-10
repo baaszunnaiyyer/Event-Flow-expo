@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "event_flow",
+    "name": "Event Flow",
     "slug": "event_flow",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -55,7 +55,8 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-notifications",
-      "expo-background-task"
+      "expo-background-task",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

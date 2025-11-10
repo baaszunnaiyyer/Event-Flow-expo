@@ -92,27 +92,34 @@ function Requestes() {
         >
           {isEventTab ? (
             filteredEventTasks.length > 0 ? (
-              filteredEventTasks.map((task, index) => (
-                <ListItem
-                  key={`${index}`}
-                  task={task}
-                  onDismiss={() => handleEventResponse('rejected', task)}
-                  onComplete={() => handleEventResponse('accepted', task)}
-                />
-              ))
+              <>
+                {filteredEventTasks.map((task, index) => (
+                  <ListItem
+                    key={`${index}`}
+                    task={task}
+                    onDismiss={() => handleEventResponse('rejected', task)}
+                    onComplete={() => handleEventResponse('accepted', task)}
+                  />
+                ))}
+                <Text style={{ textAlign: "center", marginTop: 20, fontSize : 15, color : "#666" }}>Swipe Left and Right to response</Text>
+              </>
             ) : (
               <Text style={{ textAlign: "center", marginTop: 20, fontSize : 15, color : "#666" }}>No Requests Found</Text>
             )
           ) : (
             filteredTeamRequests.length > 0 ? (
-              filteredTeamRequests.map((request, index) => (
+              <>
+
+              {filteredTeamRequests.map((request, index) => (
                 <TeamRequestItem
                   key={`${index}`}
                   request={request}
                   onDismiss={() => handleTeamRequestResponse("rejected", request)}
                   onComplete={() => handleTeamRequestResponse("accepted", request)}
                 />
-              ))
+              ))}
+              <Text style={{ textAlign: "center", marginTop: 20, fontSize : 15, color : "#666" }}>Swipe Left and Right to response</Text>
+            </>
             ) : (
               <Text style={{ textAlign: "center", marginTop: 20, fontSize : 15, color : "#666" }}>No Requests Found</Text>
             )

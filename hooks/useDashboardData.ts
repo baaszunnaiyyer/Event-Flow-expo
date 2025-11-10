@@ -1,16 +1,18 @@
-import { useState, useCallback, AnyActionArg } from "react";
-import { useFocusEffect } from "@react-navigation/native";
-import * as SecureStore from "expo-secure-store";
+import { Event, Request, Team, TeamRequest } from "@/types/model";
 import { API_BASE_URL } from "@/utils/constants";
-import { Creator, Event, Request, Team, TeamRequest } from "@/types/model";
-import { happensToday, getMonday, getAllowedWeekdays } from "@/utils/Dashboard/dateHelper";
 import { generateWeeklyChartData } from "@/utils/Dashboard/chartHealper";
-import { db } from "@/utils/db/schema";
-import { syncTable, upsertTable } from "@/utils/db/SyncDB";
-import { GetAllTeamRequest } from "@/utils/db/Requestes";
-import { getJoinedEvents, syncEventsWithNestedData } from "@/utils/db/Events";
-import { SyncTeamRequstWithNestedData } from "@/utils/db/teams";
+import { getMonday, happensToday } from "@/utils/Dashboard/dateHelper";
 import { queueDB } from "@/utils/db/DatabaseQueue";
+import { getJoinedEvents, syncEventsWithNestedData } from "@/utils/db/Events";
+import { GetAllTeamRequest } from "@/utils/db/Requestes";
+import { db } from "@/utils/db/schema";
+import { syncTable } from "@/utils/db/SyncDB";
+import { SyncTeamRequstWithNestedData } from "@/utils/db/teams";
+import { RegisterEventNotifications } from "@/utils/Notifications/EventNotifications";
+import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { AnyActionArg, useCallback, useState } from "react";
 
 // 🟢 Main Hook
 export function useDashboardData() {
@@ -34,6 +36,11 @@ export function useDashboardData() {
         const previous: Event[] = [];
 
         eventsData.forEach((event) => {
+          // Filter out recurring events from upcoming and previous
+          if (event.is_recurring) {
+            return; // Skip recurring events
+          }
+          
           const eventDate = new Date(event.start_time);
           if (eventDate >= now) {
             upcoming.push(event);
@@ -68,13 +75,22 @@ export function useDashboardData() {
       };
 
       const loadCachedData = async () => {
-        const events = await getJoinedEvents();
-        const eventReqs = await db.getAllAsync<Event>("SELECT * FROM events as e  WHERE EXISTS (SELECT 1 FROM event_requests as er WHERE e.event_id = er.event_id);");
-        const teamReqs = await GetAllTeamRequest()        
+        try {
+          const events = await getJoinedEvents();
+          const eventReqs = await db.getAllAsync<Event>("SELECT * FROM events as e  WHERE EXISTS (SELECT 1 FROM event_requests as er WHERE e.event_id = er.event_id);");
+          const teamReqs = await GetAllTeamRequest();        
 
-        if (events.length || eventReqs.length || teamReqs.length) {
-          processData(events, eventReqs, teamReqs as AnyActionArg );
-          setLoading(false);
+          // Always process data, even if arrays are empty
+          processData(events, eventReqs, teamReqs as AnyActionArg);
+          
+          // If we have cached data, show it immediately (loading will be turned off after fresh fetch)
+          if (events.length || eventReqs.length || teamReqs.length) {
+            setLoading(false);
+          }
+        } catch (error) {
+          console.warn("Error loading cached data:", error);
+          // Process with empty arrays on error
+          processData([], [], []);
         }
       };
 
@@ -82,7 +98,11 @@ export function useDashboardData() {
         try {
           const token = await SecureStore.getItemAsync("userToken");
           const user_id = await SecureStore.getItemAsync("userId");
-          if (!token) throw new Error("User token missing");
+          if (!token) {
+            setLoading(false);
+            router.replace("/(auth)");
+            throw new Error("User token missing");
+          }
 
           const [eventsRes, eventReqRes, teamReqRes, teamRes] = await Promise.all([
             fetch(`${API_BASE_URL}/events`, { headers: { Authorization: token } }),
@@ -103,10 +123,12 @@ export function useDashboardData() {
               event_id: e.event_id,
               user_id: user_id,
               status : "pending"
-            }));
+          }));
           
           // 🟢 Sync nested entities
           await syncEventsWithNestedData([...eventsData,...eventRequestsData]);
+          
+          await RegisterEventNotifications(eventsData);
 
           await queueDB(()=>
             syncTable("event_requests", ["event_id", "user_id"], eventRequestFormatted, [
@@ -130,16 +152,23 @@ export function useDashboardData() {
           const rebuiltEvents = await getJoinedEvents();
 
           processData(rebuiltEvents, eventRequestsData, teamRequestsData);
+          setLoading(false);
         } catch (error) {
           console.warn("Fetch failed, keeping cached data.", error);
+          setLoading(false);
         }
       };
 
       const init = async () => {
         setLoading(true);
         await loadCachedData();
-        setLoading(false);
-        fetchFreshData();
+        try {
+          await fetchFreshData();
+        } catch (error) {
+          console.warn("Fetch failed, keeping cached data.", error);
+        }finally{
+          setLoading(false);
+        }
       };
 
       init();

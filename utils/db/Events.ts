@@ -4,6 +4,8 @@ import { Event, EventMembers } from "@/types/model";
 import { syncTable, upsertTable } from "./SyncDB";
 import { queueDB } from "./DatabaseQueue";
 
+import * as Notifications from "expo-notifications";
+
 // ✅ Insert Event
 export async function insertEvent(event: Event) {
   try {
@@ -267,6 +269,8 @@ export async function deleteEventMember(event_id: string, user_id: string) {
 }
 
 export async function syncEventsWithNestedData(eventsData: any[]) {
+
+  await Notifications.cancelAllScheduledNotificationsAsync();
   // 1. Sync all events at once
   await queueDB(()=>
     syncTable(

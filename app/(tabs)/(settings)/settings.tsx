@@ -1,21 +1,20 @@
-import React from "react";
+import { handleSignOut, useSettingsData } from "@/hooks/useSettingsData";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
-import {
-  Ionicons,
   Feather,
   FontAwesome5,
-  MaterialIcons,
   MaterialCommunityIcons,
+  MaterialIcons
 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import { useSettingsData, handleSignOut } from "@/hooks/useSettingsData";
+import React from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 const router = useRouter();
 

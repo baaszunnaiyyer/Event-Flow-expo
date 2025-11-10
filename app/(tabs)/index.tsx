@@ -1,19 +1,19 @@
-import React, { useState } from "react";
-import {
-  View,
-  Text,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
-import { StatusBar } from "expo-status-bar";
-import { dashboardStyles as styles } from "@/styles/Dashboard.styles";
-import {data } from "@/constants/constants";
 import EventCard from "@/components/Dashboard/EventCard";
+import EventsTimeLine from "@/components/Dashboard/EventsTimeLine";
+import FloatingAction from "@/components/Dashboard/FAB";
 import RequestCard from "@/components/Dashboard/RequestCard";
 import { WeeklyBarChart } from "@/components/Dashboard/weekly-bar-chart";
-import FloatingAction from "@/components/Dashboard/FAB";
-import EventsTimeLine from "@/components/Dashboard/EventsTimeLine"
+import { data } from "@/constants/constants";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { dashboardStyles as styles } from "@/styles/Dashboard.styles";
+import { StatusBar } from "expo-status-bar";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 
 const Dashboard: React.FC = () => {
   const [activeWeekIndex, setActiveWeekIndex] = useState(0);

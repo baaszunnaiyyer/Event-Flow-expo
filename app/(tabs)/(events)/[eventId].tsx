@@ -17,6 +17,7 @@ import Toast from "react-native-toast-message";
 import { PRIMARY_COLOR } from "@/constants/constants";
 import { db } from "@/utils/db/schema";
 import { BranchMember, TeamMember } from "@/types/model";
+import { DeleteEventNotification } from "@/utils/Notifications/EventNotifications";
 
 type User = {
   user_id: string;
@@ -259,6 +260,8 @@ export default function EventDetailScreen() {
         });
 
         await db.runAsync("DELETE FROM events WHERE event_id = ?", [String(eventId)]);
+
+        await DeleteEventNotification(String(eventId));
 
         router.back();
       } else {

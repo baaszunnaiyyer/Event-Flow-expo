@@ -1,24 +1,24 @@
-import React, { useCallback, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  ScrollView,
-  ActivityIndicator,
-  Pressable,
-  SafeAreaView,
-  RefreshControl,
-} from "react-native";
-import { router, useFocusEffect } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
-import { API_BASE_URL } from "@/utils/constants";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { PRIMARY_COLOR } from "@/constants/constants";
+import { API_BASE_URL } from "@/utils/constants";
+import { queueDB } from "@/utils/db/DatabaseQueue";
 import { syncTable, upsertTable } from "@/utils/db/SyncDB";
 import { db } from "@/utils/db/schema";
-import { queueDB } from "@/utils/db/DatabaseQueue";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useFocusEffect } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import React, { useCallback, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // types.ts
 interface Team {
@@ -76,6 +76,9 @@ function TeamsAndContacts() {
           contactsRes.json(),
         ]);
 
+        console.log(teamsData);
+        
+
         // STEP 3: Sync new data into SQLite
         await queueDB(() =>
           upsertTable("teams", ["team_id"], teamsData, [
@@ -132,11 +135,13 @@ function TeamsAndContacts() {
         try {
           // STEP 1: Load from local DB immediately
           const localTeams = await db.getAllAsync(
-            `SELECT t.* 
-            FROM teams AS t 
-            LEFT JOIN team_members AS tm 
-            ON t.team_id = tm.team_id 
-            WHERE tm.user_id = ?`,
+            `
+            SELECT DISTINCT t.*
+            FROM teams AS t
+            LEFT JOIN branches AS b ON b.team_id = t.team_id
+            LEFT JOIN join_requests AS jr ON jr.branch_id = b.branch_id AND jr.user_id = ?
+            WHERE jr.request_id IS NULL OR jr.status = 'accepted'
+            `,
             [myUserId]
           ) as Team[];
 
@@ -150,14 +155,19 @@ function TeamsAndContacts() {
           ) as Contact[];
 
           if (isActive) {
-            setContacts(localContacts);
-            if (localTeams.length > 0) {
-              setTeams(localTeams);
+            setContacts(localContacts || []);
+            setTeams(localTeams || []);
+            // If we have cached data, show it immediately
+            if (localTeams.length > 0 || localContacts.length > 0) {
               setLoading(false);
             }
           }
         } catch (err) {
           console.error("❌ Local data load error:", err);
+          if (isActive) {
+            setContacts([]);
+            setTeams([]);
+          }
         }
       };
 
@@ -165,10 +175,17 @@ function TeamsAndContacts() {
         try {
           setLoading(true);
           const myUserId = await SecureStore.getItemAsync("userId");
-          if (!myUserId) throw new Error("User ID missing");
+          if (!myUserId) {
+            setLoading(false);
+            throw new Error("User ID missing");
+          }
           await fetchLocalData(myUserId); // Load from SQLite
         } catch (err) {
           console.error("❌ Fetch error:", err);
+        } finally {
+          if (isActive) {
+            setLoading(false);
+          }
         }
       };
 
@@ -179,7 +196,7 @@ function TeamsAndContacts() {
         isActive = false;
         hasFetched.current = false;
       };
-    }, [activeTab])
+    }, [])
   );
 
   const handleRefresh = async () => {
