@@ -45,6 +45,14 @@ const Dashboard: React.FC = () => {
             />
           </View>
         </View>
+        {
+          todayEvents.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Today's TimeLine</Text>
+              <EventsTimeLine events={todayEvents} />
+            </>
+          )
+        }
 
         <Text style={[styles.sectionTitle, { marginTop: 0 }]}>Events</Text>
         <ScrollView
@@ -77,9 +85,6 @@ const Dashboard: React.FC = () => {
           <RequestCard title="Event Requests" requests={eventRequests} noDataMessage="No event requests found." />
           <RequestCard title="Team Requests" requests={teamRequests} noDataMessage="No team requests found." />
         </ScrollView>
-        <Text style={styles.sectionTitle}>Today's TimeLine</Text>
-
-        <EventsTimeLine events={todayEvents} />
 
       </ScrollView>
 

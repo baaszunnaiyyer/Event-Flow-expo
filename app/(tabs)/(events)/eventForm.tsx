@@ -61,15 +61,27 @@ export default function EventFormScreen() {
   const [showDatePicker, setShowDatePicker] = useState<"start" | "end" | "until" | null>(null);
   const [showMode, setShowMode] = useState<"date" | "time" | "datetime" | null>(null);
   const [tempDate, setTempDate] = useState<Date>(new Date());
-  
-
   const animHeight = useRef(new Animated.Value(0)).current;
+
+  // ---- Date Formatter ----
+  const formatDateDisplay = (isoString: string) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    return date.toLocaleString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   const toggleRecurring = () => {
     setForm((prev) => ({ ...prev, is_recurring: !prev.is_recurring, state: null }));
-
     Animated.timing(animHeight, {
-      toValue: form.is_recurring ? 0 : 350, // expand to 200px
+      toValue: form.is_recurring ? 0 : 350,
       duration: 300,
       useNativeDriver: false,
     }).start();
@@ -79,66 +91,54 @@ export default function EventFormScreen() {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const showPicker = (field: "start" | "end") => {
+  const showPicker = (field: "start" | "end" | "until") => {
     setTempDate(new Date());
     setShowDatePicker(field);
-
-    if (Platform.OS === "android") {
-        setShowMode("date"); // Start with date, then show time
-    } else {
-        setShowMode("datetime"); // iOS can show both
-    }
-    };
-
+    if (Platform.OS === "android") setShowMode("date");
+    else setShowMode("datetime");
+  };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     const isAndroid = Platform.OS === "android";
     if (event.type === "dismissed") {
-        if (isAndroid && showMode === "time") {
-        setShowDatePicker(null);
-        }
-        setShowMode(null);
-        return;
+      if (isAndroid && showMode === "time") setShowDatePicker(null);
+      setShowMode(null);
+      return;
     }
-    
-    
+
     if (selectedDate) {
-        if (isAndroid && showMode === "date") {
-        // On Android: move to time picker after selecting date
+      if (isAndroid && showMode === "date") {
         setTempDate(selectedDate);
         setShowMode("time");
         return;
-        }
+      }
 
-        const finalDate = selectedDate ?? tempDate;
-        const isoString = finalDate.toISOString();
+      const finalDate = selectedDate ?? tempDate;
+      const isoString = finalDate.toISOString();
 
-        if (showDatePicker === "start") {
-        handleChange("start_time", isoString);
-        } else if (showDatePicker === "end") {
-        handleChange("end_time", isoString);
-        }
+      if (showDatePicker === "start") handleChange("start_time", isoString);
+      else if (showDatePicker === "end") handleChange("end_time", isoString);
+      else if (showDatePicker === "until") handleChange("until", isoString);
 
-        setShowDatePicker(null);
-        setShowMode(null);
+      setShowDatePicker(null);
+      setShowMode(null);
     }
   };
-
-
-
 
   const handleSubmit = async () => {
     if (!form.title || !form.description || !form.start_time || !form.end_time || !form.category) {
       return Toast.show({
-        type:"error",
-        text1 : "Error",
-        text2 : "please Fill all the required Fields"});
+        type: "error",
+        text1: "Error",
+        text2: "Please fill all the required fields",
+      });
     }
 
     const payload = {
       ...form,
       interval: parseInt(form.interval) <= 0 ? 1 : parseInt(form.interval, 10) || 1,
-    }
+      until: form.until ? new Date(form.until).toISOString() : null, // proper ISO format
+    };
 
     try {
       setLoading(true);
@@ -154,20 +154,16 @@ export default function EventFormScreen() {
       });
 
       const data = await res.json();
-      
-      if (!res.ok) {
-        throw new Error(data?.message || "Failed to create event");
-      }
+      if (!res.ok) throw new Error(data?.message || "Failed to create event");
 
       await RegisterEventNotification(data.event);
-      console.log(data.event.event_id);
-      
 
       Toast.show({
         type: "success",
-        text1 : "Success",
-        text2 : "Event Created Sucessfully"
+        text1: "Success",
+        text2: "Event created successfully",
       });
+
       setForm({
         title: "",
         description: "",
@@ -182,7 +178,8 @@ export default function EventFormScreen() {
         by_day: [] as string[],
         until: "",
       });
-      router.replace("./events")
+
+      router.replace("./events");
     } catch (err: any) {
       Alert.alert("Error", err.message);
     } finally {
@@ -194,11 +191,12 @@ export default function EventFormScreen() {
     <GestureHandlerRootView style={styles.container}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
         <View style={styles.headingcontainer}>
-            <TouchableOpacity onPress={()=> router.replace("./events")} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={28} color="#090040" />
-            </TouchableOpacity>
-            <Text style={styles.heading}>Create Event</Text>
+          <TouchableOpacity onPress={() => router.replace("./events")} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={28} color="#090040" />
+          </TouchableOpacity>
+          <Text style={styles.heading}>Create Event</Text>
         </View>
+
         <TextInput
           placeholderTextColor="#999"
           placeholder="Event Title"
@@ -218,25 +216,27 @@ export default function EventFormScreen() {
         {/* Start Time */}
         <Pressable onPress={() => showPicker("start")} style={styles.input}>
           <Text style={{ color: form.start_time ? "#000" : "#999" }}>
-            {form.start_time ? new Date(form.start_time).toLocaleString() : "Pick Start Time"}
+            {form.start_time ? formatDateDisplay(form.start_time) : "Pick Start Time"}
           </Text>
         </Pressable>
 
         {/* End Time */}
         <Pressable onPress={() => showPicker("end")} style={styles.input}>
           <Text style={{ color: form.end_time ? "#000" : "#999" }}>
-            {form.end_time ? new Date(form.end_time).toLocaleString() : "Pick End Time"}
+            {form.end_time ? formatDateDisplay(form.end_time) : "Pick End Time"}
           </Text>
         </Pressable>
 
         {showDatePicker && showMode && (
-          <DateTimePicker
-            value={tempDate}
-            mode={showMode}
-            display={Platform.OS === "ios" ? "spinner" : "default"}
-            onChange={onDateChange}
-            minimumDate={new Date()}
-          />
+          <View style={{ marginVertical: 10 }}>
+            <DateTimePicker
+              value={tempDate}
+              mode={showMode}
+              display={Platform.OS === "ios" ? "spinner" : "default"}
+              onChange={onDateChange}
+              minimumDate={new Date()}
+            />
+          </View>
         )}
 
         <TextInput
@@ -247,31 +247,23 @@ export default function EventFormScreen() {
           style={styles.input}
         />
 
-        {/* State Selector */}
-        {
-          !form.is_recurring &&
-        (  <View style={styles.stateContainer}>
+        {!form.is_recurring && (
+          <View style={styles.stateContainer}>
             {STATES.map((s) => (
               <Pressable
                 key={s}
                 onPress={() => handleChange("state", s)}
-                style={[
-                  styles.stateButton,
-                  form.state === s && styles.stateButtonActive,
-                ]}
+                style={[styles.stateButton, form.state === s && styles.stateButtonActive]}
               >
                 <Text
-                  style={[
-                    styles.stateText,
-                    form.state === s && styles.stateTextActive,
-                  ]}
+                  style={[styles.stateText, form.state === s && styles.stateTextActive]}
                 >
                   {s}
                 </Text>
               </Pressable>
             ))}
-          </View>  )
-        }
+          </View>
+        )}
 
         <TextInput
           placeholderTextColor="#999"
@@ -281,116 +273,96 @@ export default function EventFormScreen() {
           style={styles.input}
         />
 
-        <View>
-          {/* Toggle Recurring */}
-          <Pressable onPress={toggleRecurring} style={styles.recurringToggle}>
-            <Ionicons
-              name={form.is_recurring ? "repeat" : "repeat-outline"}
-              size={22}
-              color="#090040"
-            />
-            <Text style={styles.recurringText}>
-              {form.is_recurring ? "Recurring Event" : "One-time Event"}
-            </Text>
-          </Pressable>
+        {/* Recurring Toggle */}
+        <Pressable onPress={toggleRecurring} style={styles.recurringToggle}>
+          <Ionicons
+            name={form.is_recurring ? "repeat" : "repeat-outline"}
+            size={22}
+            color="#090040"
+          />
+          <Text style={styles.recurringText}>
+            {form.is_recurring ? "Recurring Event" : "One-time Event"}
+          </Text>
+        </Pressable>
 
-          {/* Animated Recurrence Section */}
-          <Animated.View style={{ overflow: "hidden", height: animHeight }}>
-            <View style={styles.recurringContainer}>
-              {/* Frequency */}
-              <Text style={styles.label}>Frequency</Text>
-              <View style={styles.row}>
-                {FREQUENCIES.map((f) => (
-                  <Pressable
-                    key={f}
-                    onPress={() => handleChange("frequency", f)}
-                    style={[
-                      styles.option,
-                      form.frequency === f && styles.optionActive,
-                    ]}
+        <Animated.View style={{ overflow: "hidden", height: animHeight }}>
+          <View style={styles.recurringContainer}>
+            <Text style={styles.label}>Frequency</Text>
+            <View style={styles.row}>
+              {FREQUENCIES.map((f) => (
+                <Pressable
+                  key={f}
+                  onPress={() => handleChange("frequency", f)}
+                  style={[styles.option, form.frequency === f && styles.optionActive]}
+                >
+                  <Text
+                    style={[styles.optionText, form.frequency === f && styles.optionTextActive]}
                   >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        form.frequency === f && styles.optionTextActive,
-                      ]}
-                    >
-                      {f}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
-              {/* Interval */}
-              <TextInput
-                style={styles.input}
-                placeholderTextColor={"#999"}
-                placeholder="Interval (e.g., every 2 days)"
-                keyboardType="numeric"
-                value={form.interval.toString()}
-                onChangeText={(val) => handleChange("interval", val)}
-              />
-
-              {/* Days (Only if Weekly) */}
-              {form.frequency === "Weekly" && (
-                <View>
-                  <Text style={styles.label}>Repeat on</Text>
-                  <View style={styles.row}>
-                    {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((d) => (
-                      <Pressable
-                        key={d}
-                        onPress={() => {
-                          let updated = form.by_day.includes(d)
-                            ? form.by_day.filter((day) => day !== d)
-                            : [...form.by_day, d];
-                          handleChange("by_day", updated);
-                        }}
-                        style={[
-                          styles.option,
-                          form.by_day.includes(d) && styles.optionActive,
-                        ]}
-                      >
-                        <Text
-                          style={[
-                            styles.optionText,
-                            form.by_day.includes(d) && styles.optionTextActive,
-                          ]}
-                        >
-                          {d}
-                        </Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              )}
-
-              {/* Until Date */}
-              <Pressable
-                style={styles.input}
-                onPress={() => setShowDatePicker("until")}
-              >
-                <Text style={{ color: form.until ? "#000" : "#999" }}>
-                  {form.until
-                    ? new Date(form.until).toLocaleString()
-                    : "Ends on (optional)"}
-                </Text>
-              </Pressable>
-
-              {showDatePicker === "until" && (
-                <DateTimePicker
-                  value={form.until ? new Date(form.until) : new Date()}
-                  mode="date"
-                  onChange={(e, d) => {
-                    setShowDatePicker(null);
-                    if (d) handleChange("until", d.toISOString());
-                  }}
-                />
-              )}
+                    {f}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
-          </Animated.View>
-        </View>
 
-       
+            <TextInput
+              style={styles.input}
+              placeholderTextColor={"#999"}
+              placeholder="Interval (e.g., every 2 days)"
+              keyboardType="numeric"
+              value={form.interval.toString()}
+              onChangeText={(val) => handleChange("interval", val)}
+            />
+
+            {form.frequency === "Weekly" && (
+              <View>
+                <Text style={styles.label}>Repeat on</Text>
+                <View style={styles.row}>
+                  {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map((d) => (
+                    <Pressable
+                      key={d}
+                      onPress={() => {
+                        let updated = form.by_day.includes(d)
+                          ? form.by_day.filter((day) => day !== d)
+                          : [...form.by_day, d];
+                        handleChange("by_day", updated);
+                      }}
+                      style={[styles.option, form.by_day.includes(d) && styles.optionActive]}
+                    >
+                      <Text
+                        style={[styles.optionText, form.by_day.includes(d) && styles.optionTextActive]}
+                      >
+                        {d}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* Until Date */}
+              <Pressable onPress={() => showPicker("until")} style={styles.input}>
+                <View style={{ 
+                  flexDirection: "row", 
+                  alignItems: "center", 
+                  justifyContent: "space-between", 
+                  width: "100%" 
+                }}>
+                  <Text style={{ color: form.until ? "#000" : "#999" }}>
+                    {form.until ? formatDateDisplay(form.until) : "Ends on (optional)"}
+                  </Text>
+
+                  {form.until ? (
+                    <Pressable onPress={(e) => {
+                      e.stopPropagation(); // stops the main Pressable from opening the picker
+                      handleChange("until", null); // 🩵 clear the until date
+                    }}>
+                      <Ionicons name="close-circle-outline" size={20} color="#999" />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </Pressable>
+          </View>
+        </Animated.View>
 
         {loading ? (
           <ActivityIndicator color="#090040" size="large" style={{ marginTop: 20 }} />
@@ -398,7 +370,6 @@ export default function EventFormScreen() {
           <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
             <Text style={styles.submitText}>Submit</Text>
           </TouchableOpacity>
-          
         )}
       </ScrollView>
     </GestureHandlerRootView>
@@ -406,19 +377,27 @@ export default function EventFormScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    paddingTop: 50,
-    paddingHorizontal: 20,
+  container: { flex: 1, backgroundColor: "#fff", paddingTop: 50, paddingHorizontal: 20 },
+  heading: { fontSize: 24, fontWeight: "600", marginBottom: 25, marginHorizontal: 10, color: "#090040" },
+  headingcontainer: { flexDirection: "row" },
+  backButton: { margin: 0, padding: 0 },
+  input: {
+    color: "#333",
+    borderColor: "#ccc",
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: "#f9f9f9",
   },
-  heading: {
-    fontSize: 24,
-    fontWeight: "600",
-    marginBottom: 25,
-    marginHorizontal : 10,
-    color: "#090040",
+  cancelButton: {
+    backgroundColor: "#ffdddd",
+    paddingVertical: 8,
+    borderRadius: 8,
+    alignItems: "center",
+    marginTop: 5,
   },
+  cancelText: { color: "#900", fontWeight: "600" },
   submitButton: {
     backgroundColor: "#090040",
     paddingVertical: 14,
@@ -426,16 +405,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
-  submitText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  stateContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 15,
-  },
+  submitText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  stateContainer: { flexDirection: "row", justifyContent: "space-between", marginBottom: 15 },
   stateButton: {
     flex: 1,
     paddingVertical: 10,
@@ -444,34 +415,11 @@ const styles = StyleSheet.create({
     backgroundColor: "#eee",
     alignItems: "center",
   },
-  stateButtonActive: {
-    backgroundColor: "#090040",
-  },
-  stateText: {
-    color: "#333",
-  },
-  stateTextActive: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  headingcontainer :{
-    flexDirection : "row"
-  },
-  backButton :{
-    margin : 0,
-    padding : 0
-  },
-  recurringToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  recurringText: {
-    marginLeft: 8,
-    fontSize: 16,
-    color: "#090040",
-    fontWeight: "500",
-  },
+  stateButtonActive: { backgroundColor: "#090040" },
+  stateText: { color: "#333" },
+  stateTextActive: { color: "#fff", fontWeight: "bold" },
+  recurringToggle: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
+  recurringText: { marginLeft: 8, fontSize: 16, color: "#090040", fontWeight: "500" },
   recurringContainer: {
     marginTop: 10,
     padding: 10,
@@ -479,17 +427,8 @@ const styles = StyleSheet.create({
     borderColor: "#ccc",
     borderRadius: 10,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: "600",
-    marginBottom: 5,
-    color: "#333",
-  },
-  row: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    marginBottom: 10,
-  },
+  label: { fontSize: 14, fontWeight: "600", marginBottom: 5, color: "#333" },
+  row: { flexDirection: "row", flexWrap: "wrap", marginBottom: 10 },
   option: {
     paddingHorizontal: 10,
     paddingVertical: 6,
@@ -499,23 +438,7 @@ const styles = StyleSheet.create({
     marginRight: 6,
     marginBottom: 6,
   },
-  optionActive: {
-    backgroundColor: "#090040",
-    borderColor: "#090040",
-  },
-  optionText: {
-    color: "#333",
-  },
-  optionTextActive: {
-    color: "#fff",
-  },
-  input: {
-    color: "#333",
-    borderColor: "#ccc",
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: "#f9f9f9",
-  }
+  optionActive: { backgroundColor: "#090040", borderColor: "#090040" },
+  optionText: { color: "#333" },
+  optionTextActive: { color: "#fff" },
 });

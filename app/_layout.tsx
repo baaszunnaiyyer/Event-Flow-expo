@@ -1,5 +1,7 @@
 import { API_BASE_URL } from "@/utils/constants";
+import { getAllEvents } from "@/utils/db/Events";
 import { initDatabase } from "@/utils/db/schema";
+import { RegisterEventNotifications } from "@/utils/Notifications/EventNotifications";
 import { requestNotificationPermissions } from "@/utils/Notifications/notification";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getApp } from '@react-native-firebase/app';
@@ -95,7 +97,7 @@ export default function RootLayout() {
       try {
         const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
         const token = await SecureStore.getItemAsync("userToken");
-        const userId = await SecureStore.getItemAsync("userId")
+        const userId = await SecureStore.getItemAsync("userId");
 
         let isTokenValid = false;
 
@@ -116,19 +118,30 @@ export default function RootLayout() {
             await SecureStore.deleteItemAsync("userToken");
           }
         }
-
+        
         if (!hasOnboarded) {
           setInitialRoute("(onboarding)");
         } else if (isTokenValid) {
           setInitialRoute("(tabs)");
+          
+          // Schedule notifications for all events when app initializes
+          try {
+            const eventsResult = await getAllEvents();
+            if (eventsResult.success && eventsResult.data) {
+              await RegisterEventNotifications(eventsResult.data);
+              console.log("✅ Scheduled notifications for all events on app init");
+            }
+          } catch (error) {
+            console.error("❌ Error scheduling notifications on init:", error);
+          }
         } else {
           setInitialRoute("(auth)");
         }
       } catch (error) {
         console.error("Error checking app state:", error);
         setInitialRoute("(auth)");
-      }finally{
-        setLoaded(true)
+      } finally {
+        setLoaded(true);
       }
     };
 

@@ -240,9 +240,9 @@ async function scheduleEventNotifications(ev: Event) {
           const sec = Math.floor(inms / 1000);
 
           if (inms >= 0) {
-            // console.log(
-            //   `📌 Scheduling "${ev.title}" - ${reminder.label} at ${triggerDate.toLocaleString()} (occurrence: ${occurrenceDate.toLocaleDateString()})`
-            // );
+            console.log(
+              `📌 Scheduling "${ev.title}" - ${reminder.label} at ${triggerDate.toLocaleString()} (occurrence: ${occurrenceDate.toLocaleDateString()})`
+            );
 
             const notificationId = await Notifications.scheduleNotificationAsync({
               content: {
@@ -259,7 +259,7 @@ async function scheduleEventNotifications(ev: Event) {
               },
             });
 
-            // console.log("✅ Scheduled notification ID:", notificationId);
+            console.log("✅ Scheduled notification ID:", notificationId);
           }
         }
       }

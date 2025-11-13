@@ -34,7 +34,7 @@ interface EventForm {
   frequency: string;
   team_id :  string | string[];
   branch_id : string | string[];
-  interval: number;
+  interval: string;
   by_day: string[];
   until: string;
 }
@@ -59,7 +59,7 @@ export default function EventFormScreen() {
     branch_id,
     is_recurring: false,
     frequency: "",
-    interval: 1,
+    interval: "1",
     by_day: [] as string[],
     until: ""
   });
@@ -68,12 +68,22 @@ export default function EventFormScreen() {
   const [showDatePicker, setShowDatePicker] = useState<"start" | "end" | "until" | null>(null);
   const [showMode, setShowMode] = useState<"date" | "time" | "datetime" | null>(null);
   const [tempDate, setTempDate] = useState<Date>(new Date());
-
-  const handleChange = (key: string, value: any) => {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  };
-
   const animHeight = useRef(new Animated.Value(0)).current;
+
+    const formatDateDisplay = (isoString: string) => {
+    if (!isoString) return "";
+    const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "";
+    return date.toLocaleString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
   
   const toggleRecurring = () => {
     setForm((prev) => ({ ...prev, is_recurring: !prev.is_recurring, state : null }));
@@ -84,43 +94,44 @@ export default function EventFormScreen() {
       useNativeDriver: false,
     }).start();
   };
-
-  const showPicker = (field: "start" | "end") => {
+  
+  const handleChange = (key: string, value: any) => {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  };
+  
+  const showPicker = (field: "start" | "end" | "until") => {
     setTempDate(new Date());
     setShowDatePicker(field);
-    if (Platform.OS === "android") {
-      setShowMode("date");
-    } else {
-      setShowMode("datetime");
-    }
+    if (Platform.OS === "android") setShowMode("date");
+    else setShowMode("datetime");
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
     const isAndroid = Platform.OS === "android";
+  
     if (event.type === "dismissed") {
-      if (isAndroid && showMode === "time") {
-        setShowDatePicker(null);
-      }
+      if (isAndroid && showMode === "time") setShowDatePicker(null);
       setShowMode(null);
       return;
     }
-
+  
     if (selectedDate) {
       if (isAndroid && showMode === "date") {
         setTempDate(selectedDate);
         setShowMode("time");
         return;
       }
-
+  
       const finalDate = selectedDate ?? tempDate;
       const isoString = finalDate.toISOString();
-
-      if (showDatePicker === "start") {
-        handleChange("start_time", isoString);
-      } else if (showDatePicker === "end") {
-        handleChange("end_time", isoString);
+  
+      if (showDatePicker === "start") handleChange("start_time", isoString);
+      else if (showDatePicker === "end") handleChange("end_time", isoString);
+      else if (showDatePicker === "until") {
+        // 🩵 ensure a clean ISO string stored
+        handleChange("until", isoString);
       }
-
+  
       setShowDatePicker(null);
       setShowMode(null);
     }
@@ -135,6 +146,11 @@ export default function EventFormScreen() {
       });
     }
 
+    const payload = {
+      ...form,
+      interval: parseInt(form.interval) <= 0 ? 1 : parseInt(form.interval, 10) || 1,
+    }
+
     try {
       setLoading(true);
       const token = await SecureStore.getItemAsync("userToken");
@@ -145,9 +161,7 @@ export default function EventFormScreen() {
           "Content-Type": "application/json",
           Authorization: token || "",
         },
-        body: JSON.stringify({
-          ...form,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
@@ -172,7 +186,7 @@ export default function EventFormScreen() {
         frequency: "",
         team_id,
         branch_id,
-        interval: 1,
+        interval: "1",
         by_day: [] as string[],
         until: "",
       });
@@ -218,14 +232,14 @@ export default function EventFormScreen() {
         {/* Start Time */}
         <Pressable onPress={() => showPicker("start")} style={styles.input}>
           <Text style={{ color: form.start_time ? "#000" : "#999" }}>
-            {form.start_time ? new Date(form.start_time).toLocaleString() : "Pick Start Time"}
+            {form.start_time ? formatDateDisplay(form.start_time) : "Pick Start Time"}
           </Text>
         </Pressable>
 
         {/* End Time */}
         <Pressable onPress={() => showPicker("end")} style={styles.input}>
           <Text style={{ color: form.end_time ? "#000" : "#999" }}>
-            {form.end_time ? new Date(form.end_time).toLocaleString() : "Pick End Time"}
+            {form.end_time ? formatDateDisplay(form.end_time) : "Pick End Time"}
           </Text>
         </Pressable>
 
@@ -364,27 +378,27 @@ export default function EventFormScreen() {
               )}
 
               {/* Until Date */}
-              <Pressable
-                style={styles.input}
-                onPress={() => setShowDatePicker("until")}
-              >
-                <Text style={{ color: form.until ? "#000" : "#999" }}>
-                  {form.until
-                    ? new Date(form.until).toLocaleString()
-                    : "Ends on (optional)"}
-                </Text>
-              </Pressable>
+              <Pressable onPress={() => showPicker("until")} style={styles.input}>
+                <View style={{ 
+                  flexDirection: "row", 
+                  alignItems: "center", 
+                  justifyContent: "space-between", 
+                  width: "100%" 
+                }}>
+                  <Text style={{ color: form.until ? "#000" : "#999" }}>
+                    {form.until ? formatDateDisplay(form.until) : "Ends on (optional)"}
+                  </Text>
 
-              {showDatePicker === "until" && (
-                <DateTimePicker
-                  value={form.until ? new Date(form.until) : new Date()}
-                  mode="date"
-                  onChange={(e, d) => {
-                    setShowDatePicker(null);
-                    if (d) handleChange("until", d.toISOString());
-                  }}
-                />
-              )}
+                  {form.until ? (
+                    <Pressable onPress={(e) => {
+                      e.stopPropagation(); // stops the main Pressable from opening the picker
+                      handleChange("until", null); // 🩵 clear the until date
+                    }}>
+                      <Ionicons name="close-circle-outline" size={20} color="#999" />
+                    </Pressable>
+                  ) : null}
+                </View>
+              </Pressable>
             </View>
           </Animated.View>
         </View>
