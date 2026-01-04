@@ -5,6 +5,7 @@ export default function RootLayout() {
       <Stack.Screen name="events" options={{ headerShown: false }} />
       <Stack.Screen name="eventForm" options={{ headerShown: false}}  />
       <Stack.Screen name="[eventId]" options={{ headerShown: false}}  />
+      <Stack.Screen name="expenses" options={{ headerShown: false}}  />
     </Stack>
   );
 }

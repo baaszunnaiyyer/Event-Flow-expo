@@ -122,3 +122,13 @@ export type SchemaBranch = {
   created_at : string;
   updated_at : string;
 }
+
+export type EventExpense = {
+  expense_id: string;
+  event_id: string;
+  amount: number;
+  description: string | null;
+  uploaded_by: string;
+  uploaded_at: string;
+  uploaded_by_user?: Creator | null;
+}

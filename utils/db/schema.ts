@@ -39,7 +39,8 @@ export async function initDatabase() {
       team_id TEXT PRIMARY KEY,
       team_name TEXT NOT NULL,
       team_description TEXT,
-      joined_at TEXT
+      joined_at TEXT,
+      is_public INTEGER
     );
 
     -- TEAM MEMBERS
@@ -150,6 +151,34 @@ export async function initDatabase() {
       FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
       FOREIGN KEY (contact_user_id) REFERENCES users(user_id) ON DELETE CASCADE
     );
+
+    -- EVENT EXPENSES
+    CREATE TABLE IF NOT EXISTS event_expenses (
+      expense_id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL,
+      amount REAL NOT NULL,
+      description TEXT,
+      uploaded_by TEXT NOT NULL,
+      uploaded_at TEXT,
+      FOREIGN KEY (event_id) REFERENCES events(event_id) ON DELETE CASCADE,
+      FOREIGN KEY (uploaded_by) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+
+    -- EVENT PHOTOS
+    CREATE TABLE IF NOT EXISTS event_photos (
+      photo_id TEXT PRIMARY KEY,
+      event_id TEXT NOT NULL,
+      photo_url TEXT NOT NULL,
+      caption TEXT,
+      uploaded_by TEXT NOT NULL,
+      uploaded_at TEXT,
+      medium_url TEXT,
+      thumbnail_url TEXT,
+      s3Key TEXT,
+      FOREIGN KEY (event_id) REFERENCES events(event_id) ON DELETE CASCADE,
+      FOREIGN KEY (uploaded_by) REFERENCES users(user_id) ON DELETE CASCADE
+    );
+    
   `);
   isInitialized = true;
   } catch (error) {

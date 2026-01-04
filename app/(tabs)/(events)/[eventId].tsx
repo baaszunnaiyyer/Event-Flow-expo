@@ -1,23 +1,23 @@
+import { PRIMARY_COLOR } from "@/constants/constants";
+import { BranchMember, TeamMember } from "@/types/model";
+import { API_BASE_URL } from "@/utils/constants";
+import { db } from "@/utils/db/schema";
+import { DeleteEventNotification } from "@/utils/Notifications/EventNotifications";
+import { Ionicons } from "@expo/vector-icons";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
   ActivityIndicator,
-  TouchableOpacity,
   Alert,
   Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import * as SecureStore from "expo-secure-store";
-import { API_BASE_URL } from "@/utils/constants";
 import Toast from "react-native-toast-message";
-import { PRIMARY_COLOR } from "@/constants/constants";
-import { db } from "@/utils/db/schema";
-import { BranchMember, TeamMember } from "@/types/model";
-import { DeleteEventNotification } from "@/utils/Notifications/EventNotifications";
 
 type User = {
   user_id: string;
@@ -366,8 +366,42 @@ export default function EventDetailScreen() {
               <TouchableOpacity onPress={() => router.back()}>
                 <Text style={styles.link}>{event.team.team_name} | {event.branch.branch_name}</Text>
               </TouchableOpacity>
+              <View style={styles.divider} />
             </>
           )}
+
+          {/* Expenses Button - Admin Only */}
+          {isAdmin && (
+            <>
+              <TouchableOpacity
+                style={styles.expenseButton}
+                onPress={() => router.push(`./expenses?eventId=${event.event_id}`)}
+              >
+                <View style={styles.expenseButtonContent}>
+                  <Ionicons name="receipt-outline" size={20} color={PRIMARY_COLOR} />
+                  <Text style={styles.expenseButtonText}>View Expenses</Text>
+                </View>
+                <Ionicons name="chevron-forward-outline" size={20} color="#666" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+            </>
+          )}
+
+          {
+            <>
+              <TouchableOpacity
+                style={styles.expenseButton}
+                
+              >
+                <View style={styles.expenseButtonContent}>
+                  <Ionicons name="images-outline" size={20} color={PRIMARY_COLOR} />
+                  <Text style={styles.expenseButtonText}>View Photos</Text>
+                </View>
+                <Ionicons name="chevron-forward-outline" size={20} color="#666" />
+              </TouchableOpacity>
+              <View style={styles.divider} />
+            </>
+          }
         </View>
 
         {/* Event Members Section */}
@@ -655,6 +689,23 @@ byDayText: {
   color: "#1e3a8a",
   fontWeight: "600",
   fontSize: 12,
+},
+expenseButton: {
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "space-between",
+  paddingVertical: 12,
+  paddingHorizontal: 4,
+},
+expenseButtonContent: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 12,
+},
+expenseButtonText: {
+  fontSize: 16,
+  fontWeight: "600",
+  color: PRIMARY_COLOR,
 },
 
 
