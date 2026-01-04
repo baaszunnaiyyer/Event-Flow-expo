@@ -1,13 +1,16 @@
 import { PRIMARY_COLOR } from "@/constants/constants";
 import { EventExpense } from "@/types/model";
 import { API_BASE_URL } from "@/utils/constants";
+import { queueDB } from "@/utils/db/DatabaseQueue";
+import { deleteExpense, getEventExpenses, insertExpense, updateExpense } from "@/utils/db/expenses";
+import { syncTable } from "@/utils/db/SyncDB";
 import { Ionicons } from "@expo/vector-icons";
+import { set } from "date-fns";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
-    Alert,
     Modal,
     Pressable,
     ScrollView,
@@ -28,6 +31,8 @@ export default function ExpensesScreen() {
   const [buttonLoading, setButtonLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [expenseToDelete, setExpenseToDelete] = useState<EventExpense | null>(null);
   const [selectedExpense, setSelectedExpense] = useState<EventExpense | null>(null);
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -41,8 +46,11 @@ export default function ExpensesScreen() {
       setLoading(true);
   
       // 1️⃣ Load from local DB FIRST
-      // const localExpenses = await getEventExpenses(String(eventId));
-      // setExpenses(localExpenses);
+      const localExpenses = await queueDB(() => getEventExpenses(String(eventId)));
+      if (localExpenses && localExpenses.length > 0){
+        setExpenses(localExpenses);
+        setLoading(false);
+      }
   
       // 2️⃣ Fetch from API
       const token = await SecureStore.getItemAsync("userToken");
@@ -55,7 +63,7 @@ export default function ExpensesScreen() {
   
       if (!res.ok) return;
   
-      const serverData = await res.json();
+      const serverData = await res.json();      
   
       // 🔒 HARD GUARD
       if (!Array.isArray(serverData.expenses)) {
@@ -64,13 +72,23 @@ export default function ExpensesScreen() {
       }
   
       // 3️⃣ Sync directly using syncTable
-      // await syncTable(
-      //   "event_expenses",
-      //   ["expense_id"],
-      //   serverData,
-      //   ["expense_id", "event_id", "amount", "description", "uploaded_by", "uploaded_at"]
-      // );
+      await queueDB(() =>syncTable(
+        "event_expenses",
+        ["expense_id"],
+        serverData.expenses,
+        ["expense_id", "event_id", "amount", "description", "uploaded_by", "uploaded_at"]
+      ))
+      
 
+      const users  = serverData.expenses.map((exp : any) => exp.uploader);
+      
+      await queueDB(()=>
+        syncTable(
+          "users",
+          ["user_id"],
+          users,
+          ["user_id", "name", "email"]
+        ))
       setExpenses(serverData.expenses);
   
     } catch (error) {
@@ -99,7 +117,6 @@ export default function ExpensesScreen() {
     try {
       setButtonLoading(true);
       const token = await SecureStore.getItemAsync("userToken");
-      const userId = await SecureStore.getItemAsync("userId");
 
       const res = await fetch(`${API_BASE_URL}/events/${eventId}/expenses`, {
         method: "POST",
@@ -113,12 +130,16 @@ export default function ExpensesScreen() {
         }),
       });
 
+      
+      
       if (!res.ok) {
         const errorText = await res.text();
         throw new Error(errorText || "Failed to add expense");
       }
-
+      
       const newExpense = await res.json();
+      await queueDB(() => insertExpense(newExpense.expense));
+      
       // await syncExpenses([newExpense]);
       
       Toast.show({
@@ -126,11 +147,11 @@ export default function ExpensesScreen() {
         text1: "Success",
         text2: "Expense added successfully",
       });
-      setExpenses((prev) => [...prev, newExpense]);
+      const OtherExpense = expenses.filter(exp => exp.expense_id !== newExpense.expense.expense_id);
+      setExpenses(() => [newExpense.expense, ...OtherExpense]);
       setAmount("");
       setDescription("");
-      setShowAddModal(false);
-      await fetchExpenses();
+      setShowAddModal(false);      
     } catch (error: any) {
       Toast.show({
         type: "error",
@@ -177,15 +198,21 @@ export default function ExpensesScreen() {
       }
 
       const updatedExpense = await res.json();
+      console.log(updatedExpense.expense);
+      
+      await queueDB(() => updateExpense(updatedExpense.expense.expense_id, updatedExpense.expense.amount, updatedExpense.expense.description));
       
       Toast.show({
         type: "success",
         text1: "Success",
         text2: "Expense updated successfully",
       });
+
       setExpenses((prev) =>
         prev.map((exp) =>
-          exp.expense_id === updatedExpense.expense_id ? updatedExpense : exp
+          exp.expense_id === updatedExpense.expense.expense_id
+            ? updatedExpense.expense
+            : exp
         )
       );
 
@@ -193,7 +220,6 @@ export default function ExpensesScreen() {
       setSelectedExpense(null);
       setAmount("");
       setDescription("");
-      await fetchExpenses();
     } catch (error: any) {
       Toast.show({
         type: "error",
@@ -206,55 +232,54 @@ export default function ExpensesScreen() {
   };
 
   const handleDeleteExpense = (expense: EventExpense) => {
-    Alert.alert(
-      "Delete Expense",
-      `Are you sure you want to delete this expense of $${expense.amount?.toFixed(2)}?`,
-      [
-        { text: "Cancel", style: "cancel" },
+    setExpenseToDelete(expense);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDeleteExpense = async () => {
+    if (!expenseToDelete) return;
+
+    try {
+      setButtonLoading(true);
+      const token = await SecureStore.getItemAsync("userToken");
+
+      const res = await fetch(
+        `${API_BASE_URL}/events/${eventId}/expenses/${expenseToDelete.expense_id}`,
         {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setButtonLoading(true);
-              const token = await SecureStore.getItemAsync("userToken");
+          method: "DELETE",
+          headers: { Authorization: token || "" },
+        }
+      );
 
-              const res = await fetch(
-                `${API_BASE_URL}/events/${eventId}/expenses/${expense.expense_id}`,
-                {
-                  method: "DELETE",
-                  headers: { Authorization: token || "" },
-                }
-              );
+      
+      if (!res.ok) {
+        throw new Error("Failed to delete expense");
+      }
 
-              if (!res.ok) {
-                throw new Error("Failed to delete expense");
-              }
-              
-              Toast.show({
-                type: "success",
-                text1: "Success",
-                text2: "Expense deleted successfully",
-              });
+      await queueDB(() => deleteExpense(expenseToDelete.expense_id));
 
-              setExpenses((prev) =>
-                prev.filter((exp) => exp.expense_id !== expense.expense_id)
-              );
+      setExpenses((prev) =>
+        prev.filter((exp) => exp.expense_id !== expenseToDelete.expense_id)
+      );
 
-              await fetchExpenses();
-            } catch (error) {
-              Toast.show({
-                type: "error",
-                text1: "Error",
-                text2: "Failed to delete expense",
-              });
-            } finally {
-              setButtonLoading(false);
-            }
-          },
-        },
-      ]
-    );
+      setShowDeleteModal(false);
+      setExpenseToDelete(null);
+      
+      Toast.show({
+        type: "success",
+        text1: "Success",
+        text2: "Expense deleted successfully",
+      });
+
+    } catch (error) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Failed to delete expense",
+      });
+    } finally {
+      setButtonLoading(false);
+    }
   };
 
   const openEditModal = (expense: EventExpense) => {
@@ -315,7 +340,7 @@ export default function ExpensesScreen() {
                     {expense.description || "No description"}
                   </Text>
                   <Text style={styles.expenseMeta}>
-                    {expense.uploaded_by_user?.name || "Unknown"} •{" "}
+                    {expense.uploaded_by_user?.name || expense.uploader?.name  || "Unknown"} •{" "}
                     {new Date(expense.uploaded_at).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
@@ -447,6 +472,59 @@ export default function ExpensesScreen() {
                   <ActivityIndicator color="#fff" />
                 ) : (
                   <Text style={styles.submitButtonText}>Update Expense</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => {
+          setShowDeleteModal(false);
+          setExpenseToDelete(null);
+        }}
+      >
+        <View style={styles.deleteModalOverlay}>
+          <View style={styles.deleteModalContent}>
+            <View style={styles.deleteModalIconContainer}>
+              <Ionicons name="alert-circle" size={64} color="#e74c3c" />
+            </View>
+            <Text style={styles.deleteModalTitle}>Delete Expense</Text>
+            <Text style={styles.deleteModalMessage}>
+              Are you sure you want to delete this expense of{" "}
+              <Text style={styles.deleteModalAmount}>
+                ${expenseToDelete?.amount?.toFixed(2)}
+              </Text>
+              ?
+            </Text>
+            <Text style={styles.deleteModalSubtext}>
+              This action cannot be undone.
+            </Text>
+            <View style={styles.deleteModalButtons}>
+              <TouchableOpacity
+                style={styles.deleteCancelButton}
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  setExpenseToDelete(null);
+                }}
+                disabled={buttonLoading}
+              >
+                <Text style={styles.deleteCancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteConfirmButton}
+                onPress={confirmDeleteExpense}
+                disabled={buttonLoading}
+              >
+                {buttonLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.deleteConfirmButtonText}>Delete</Text>
                 )}
               </TouchableOpacity>
             </View>
@@ -649,6 +727,82 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   submitButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxWidth: 400,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 10,
+  },
+  deleteModalIconContainer: {
+    marginBottom: 16,
+  },
+  deleteModalTitle: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: "#1a1a1a",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 8,
+    lineHeight: 22,
+  },
+  deleteModalAmount: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: PRIMARY_COLOR,
+  },
+  deleteModalSubtext: {
+    fontSize: 14,
+    color: "#999",
+    textAlign: "center",
+    marginBottom: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: "row",
+    gap: 12,
+    width: "100%",
+  },
+  deleteCancelButton: {
+    flex: 1,
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+  },
+  deleteCancelButtonText: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    backgroundColor: "#e74c3c",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+  },
+  deleteConfirmButtonText: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",

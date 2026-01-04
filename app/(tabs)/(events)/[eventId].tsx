@@ -387,7 +387,7 @@ export default function EventDetailScreen() {
             </>
           )}
 
-          {
+          {/* {
             <>
               <TouchableOpacity
                 style={styles.expenseButton}
@@ -401,7 +401,7 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
               <View style={styles.divider} />
             </>
-          }
+          } */}
         </View>
 
         {/* Event Members Section */}

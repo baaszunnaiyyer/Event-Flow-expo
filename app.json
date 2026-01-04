@@ -3,22 +3,35 @@
     "name": "Event Flow",
     "slug": "event_flow",
     "version": "1.0.0",
+    "description": "Event Flow - Manage your events, teams, and expenses efficiently. Organize and track all your activities in one place.",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "eventflow",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "author": "Zunore",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.devtemp.eventflow"
     },
     "android": {
       "googleServicesFile": "./google-services.json",
       "package": "com.devtemp.eventflow",
+      "versionCode": 1,
+      "permissions": [
+        "INTERNET",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "WAKE_LOCK"
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "softwareKeyboardLayoutMode": "pan"
     },
     "web": {
       "bundler": "metro",

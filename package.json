@@ -2,6 +2,8 @@
   "name": "event_flow",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "author": "Zunore",
+  "description": "Event Flow - Manage your events, teams, and expenses efficiently",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",

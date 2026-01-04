@@ -131,4 +131,5 @@ export type EventExpense = {
   uploaded_by: string;
   uploaded_at: string;
   uploaded_by_user?: Creator | null;
+  uploader?: Creator | null;
 }
