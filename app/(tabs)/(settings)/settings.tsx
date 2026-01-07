@@ -1,26 +1,106 @@
 import { handleSignOut, useSettingsData } from "@/hooks/useSettingsData";
+import { API_BASE_URL } from "@/utils/constants";
 import {
   Feather,
   FontAwesome5,
+  Ionicons,
   MaterialCommunityIcons,
   MaterialIcons
 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
-import React from "react";
+import * as SecureStore from "expo-secure-store";
+import React, { useState } from "react";
 import {
   ActivityIndicator,
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
-
-const router = useRouter();
+import Toast from "react-native-toast-message";
 
 export default function SettingsScreen() {
-
+  const router = useRouter();
   const {loading, userInfo} = useSettingsData();
+  
+  // Report User State
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportEmail, setReportEmail] = useState("");
+  const [reportReason, setReportReason] = useState("");
+  const [reportLoading, setReportLoading] = useState(false);
+  
+
+  const handleReportUser = async () => {
+    if (!reportEmail.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Please enter the user's email address",
+      });
+      return;
+    }
+
+    if (!reportReason.trim()) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Please provide a reason for reporting",
+      });
+      return;
+    }
+
+    try {
+      setReportLoading(true);
+      const token = await SecureStore.getItemAsync("userToken");
+      if (!token) {
+        Toast.show({
+          type: "error",
+          text1: "Error",
+          text2: "Authentication required",
+        });
+        return;
+      }
+
+      const res = await fetch(`${API_BASE_URL}/settings/report`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: token,
+        },
+        body: JSON.stringify({
+          email: reportEmail.trim(),
+          reason: reportReason.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(errorText || "Failed to report user");
+      }
+
+      Toast.show({
+        type: "success",
+        text1: "Success",
+        text2: "User reported successfully",
+      });
+
+      setReportEmail("");
+      setReportReason("");
+      setShowReportModal(false);
+    } catch (error: any) {
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: error.message || "Failed to report user",
+      });
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
@@ -68,6 +148,12 @@ export default function SettingsScreen() {
               onPress={() => router.push("./support")}
             />
             <SettingsOption
+              icon={<MaterialIcons name="report-problem" size={20} color="#090040" />}
+              label="Report User"
+              onPress={() => setShowReportModal(true)}
+              isbutton={true}
+            />
+            <SettingsOption
               icon={<FontAwesome5 name="sign-out-alt" size={20} color="#090040" />}
               label="Sign Out"
               isLogout
@@ -76,6 +162,62 @@ export default function SettingsScreen() {
           </View>
         </>
       )}
+
+      {/* Report User Modal */}
+      <Modal
+        visible={showReportModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Report User</Text>
+              <TouchableOpacity onPress={() => setShowReportModal(false)}>
+                <Ionicons name="close" size={24} color="#333" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.inputLabel}>User Email</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="user@example.com"
+                value={reportEmail}
+                onChangeText={setReportEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholderTextColor="#999"
+              />
+
+              <Text style={styles.inputLabel}>Reason for Reporting</Text>
+              <TextInput
+                style={[styles.input, styles.textArea]}
+                placeholder="Please describe why you are reporting this user..."
+                value={reportReason}
+                onChangeText={setReportReason}
+                multiline
+                numberOfLines={4}
+                placeholderTextColor="#999"
+              />
+
+              <TouchableOpacity
+                style={styles.submitButton}
+                onPress={handleReportUser}
+                disabled={reportLoading}
+              >
+                {reportLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitButtonText}>Submit Report</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </ScrollView>
   );
 }
@@ -84,11 +226,13 @@ function SettingsOption({
   icon,
   label,
   isLogout = false,
+  isbutton = false,
   onPress,
 }: {
   icon: React.ReactNode;
   label: string;
   isLogout?: boolean;
+  isbutton?: boolean;
   onPress?: () => void;
 }) {
   return (
@@ -101,7 +245,7 @@ function SettingsOption({
         {icon}
         <Text style={[styles.optionText, isLogout && styles.logoutText]}>{label}</Text>
       </View>
-      <Feather name="chevron-right" size={20} color="#ccc" />
+      {isbutton !== true && <Feather name="chevron-right" size={20} color="#ccc" />}
     </TouchableOpacity>
   );
 }
@@ -164,6 +308,67 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: "#090040",
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    paddingBottom: 40,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e5e7eb",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#1a1a1a",
+  },
+  modalBody: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 8,
+  },
+  input: {
+    backgroundColor: "#f5f5f5",
+    borderRadius: 12,
+    padding: 14,
+    fontSize: 16,
+    color: "#1a1a1a",
+    marginBottom: 16,
+  },
+  textArea: {
+    height: 100,
+    textAlignVertical: "top",
+  },
+  submitButton: {
+    backgroundColor: "#090040",
+    borderRadius: 12,
+    padding: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  submitButtonText: {
+    color: "#fff",
+    fontSize: 16,
     fontWeight: "600",
   },
 });

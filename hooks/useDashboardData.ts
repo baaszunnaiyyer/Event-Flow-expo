@@ -91,6 +91,8 @@ export function useDashboardData() {
           console.warn("Error loading cached data:", error);
           // Process with empty arrays on error
           processData([], [], []);
+        }finally{
+          setLoading(false);
         }
       };
 

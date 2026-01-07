@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "@/utils/constants";
 import { db } from "@/utils/db/schema";
 import { useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { useEffect, useState } from "react";
 import Toast from "react-native-toast-message";
 
 const router = useRouter();
@@ -24,6 +24,8 @@ export const handleSignOut = async () => {
       DELETE FROM contacts;
       DELETE FROM join_requests;
       DELETE FROM event_requests;
+      DELETE FROM event_expenses;
+      DELETE FROM event_photos;
     `);
     await db.execAsync('COMMIT;');
 
