@@ -12,11 +12,11 @@
     "author": "Zunore",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.devtemp.eventflow"
+      "bundleIdentifier": "com.zunore.eventflow"
     },
     "android": {
       "googleServicesFile": "./google-services.json",
-      "package": "com.devtemp.eventflow",
+      "package": "com.zunore.eventflow",
       "versionCode": 1,
       "permissions": [
         "INTERNET",
