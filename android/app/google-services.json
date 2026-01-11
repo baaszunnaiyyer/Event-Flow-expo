@@ -7,18 +7,26 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:556429365376:android:8b8c0386291d9d9d915665",
+        "mobilesdk_app_id": "1:556429365376:android:b28e5a93d0839d31915665",
         "android_client_info": {
-          "package_name": "com.devtemp.eventflow"
+          "package_name": "com.zunore.eventflow"
         }
       },
       "oauth_client": [
         {
-          "client_id": "556429365376-mkdtkf0hkt26nfst1odggprk0ci9eed6.apps.googleusercontent.com",
+          "client_id": "556429365376-4g17u94r8ltsip01o69o2vda97c9h50e.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.devtemp.eventflow",
-            "certificate_hash": "537fd7fed38b254ef658817dd61f8313edb1b948"
+            "package_name": "com.zunore.eventflow",
+            "certificate_hash": "8c6f7cf006551edd2e12c8041ddbaecd93264080"
+          }
+        },
+        {
+          "client_id": "556429365376-v4b79s2sdgplf8bt5rnka68qeq7ncgdd.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.zunore.eventflow",
+            "certificate_hash": "2ced91a1ae13bbcab774ba9321d9070e7f8e78b4"
           }
         },
         {

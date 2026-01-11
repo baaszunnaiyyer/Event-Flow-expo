@@ -18,9 +18,6 @@ import {
 } from "react-native";
 import { API_BASE_URL } from "../../utils/constants";
 
-import { Creator } from "@/types/model";
-import { queueDB } from "@/utils/db/DatabaseQueue";
-import { upsertTable } from "@/utils/db/SyncDB";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GoogleAuthProvider, getAuth, signInWithCredential } from '@react-native-firebase/auth';
 import {
@@ -102,6 +99,14 @@ export default function LoginScreen() {
       return signInWithCredential(getAuth(), googleCredential);
 
     } catch (error : any) {
+      // Enhanced error logging for debugging
+      console.error("Google Sign-In Error Details:", {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+        toString: error.toString()
+      });
+      
       if (isErrorWithCode(error)) {
         switch (error.code) {
           case statusCodes.IN_PROGRESS:

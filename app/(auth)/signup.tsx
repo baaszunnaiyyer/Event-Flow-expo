@@ -1,29 +1,29 @@
-import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-} from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
-import * as SecureStore from "expo-secure-store";
-import { API_BASE_URL } from "../../utils/constants";
-import DateTimePicker from "@react-native-community/datetimepicker";
-import * as WebBrowser from "expo-web-browser";
-import { GoogleSignin, isErrorWithCode, statusCodes } from "@react-native-google-signin/google-signin";
-import Toast from "react-native-toast-message";
-import { getAuth, GoogleAuthProvider, signInWithCredential } from "@react-native-firebase/auth";
 import { Creator } from "@/types/model";
 import { queueDB } from "@/utils/db/DatabaseQueue";
 import { upsertTable } from "@/utils/db/SyncDB";
+import { Ionicons } from "@expo/vector-icons";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { getAuth, GoogleAuthProvider, signInWithCredential } from "@react-native-firebase/auth";
+import { GoogleSignin, isErrorWithCode, statusCodes } from "@react-native-google-signin/google-signin";
+import { router } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import * as WebBrowser from "expo-web-browser";
+import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import Toast from "react-native-toast-message";
+import { API_BASE_URL } from "../../utils/constants";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -130,6 +130,14 @@ export default function SignUpScreen() {
         return signInWithCredential(getAuth(), googleCredential);
   
       } catch (error : any) {
+        // Enhanced error logging for debugging
+        console.error("Google Sign-In Error Details:", {
+          code: error.code,
+          message: error.message,
+          stack: error.stack,
+          toString: error.toString()
+        });
+        
         if (isErrorWithCode(error)) {
           switch (error.code) {
             case statusCodes.IN_PROGRESS:
