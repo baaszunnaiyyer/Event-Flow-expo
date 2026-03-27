@@ -1,4 +1,5 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text } from "@/components/AppTypography";
+import { StyleSheet, View } from "react-native";
 import React, { useState, useEffect } from 'react';
 import { router } from 'expo-router';
 import * as SecureStore from "expo-secure-store";
@@ -9,6 +10,7 @@ import { syncTable, upsertTable } from '@/utils/db/SyncDB';
 import { SyncTeamRequstWithNestedData } from '@/utils/db/teams';
 import LottieView from 'lottie-react-native';
 import { PRIMARY_COLOR } from '@/constants/constants';
+import { isGoogleProfileIncomplete } from '@/utils/isGoogleProfileIncomplete';
 import { getApp } from '@react-native-firebase/app';
 import { getMessaging, getToken, requestPermission } from '@react-native-firebase/messaging';
 
@@ -23,6 +25,8 @@ const LoadingScreen = () => {
   }, []);
 
   useEffect(() => {
+    let cancelled = false;
+    let syncTimeout: ReturnType<typeof setTimeout> | undefined;
 
     const ensureFcmTokenRegistered = async (token:string) => {
       try {
@@ -42,7 +46,7 @@ const LoadingScreen = () => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `${token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             token: fcmToken,
@@ -64,11 +68,11 @@ const LoadingScreen = () => {
         }
 
         const [settingsRes,eventsRes, eventReqRes, teamReqRes, teamRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/settings`, { headers: { Authorization: token } }),
-          fetch(`${API_BASE_URL}/events`, { headers: { Authorization: token } }),
-          fetch(`${API_BASE_URL}/requestes/events`, { headers: { Authorization: token } }),
-          fetch(`${API_BASE_URL}/requestes/people`, { headers: { Authorization: token } }),
-          fetch(`${API_BASE_URL}/teams`, { headers: { Authorization: token } }),
+          fetch(`${API_BASE_URL}/settings`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/events`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/requests/events`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/requests/people`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/teams`, { headers: { Authorization: `Bearer ${token}` } }),
         ]);
 
         if (!eventsRes.ok || !eventReqRes.ok || !teamReqRes.ok || !teamRes.ok) {
@@ -144,9 +148,50 @@ const LoadingScreen = () => {
       }
     };
 
-    setTimeout(()=>{
-        fetchFreshData();
-    }, 5000)
+    const run = async () => {
+      try {
+        const token = await SecureStore.getItemAsync("userToken");
+        if (!token) {
+          router.replace("/(auth)");
+          return;
+        }
+
+        const settingsRes = await fetch(`${API_BASE_URL}/settings`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (cancelled) return;
+
+        if (settingsRes.status === 401) {
+          router.replace("/(auth)");
+          return;
+        }
+
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          if (isGoogleProfileIncomplete(settingsData)) {
+            router.replace("/(auth)/complete-google-profile");
+            return;
+          }
+        }
+
+        syncTimeout = setTimeout(() => {
+          if (!cancelled) fetchFreshData();
+        }, 5000);
+      } catch (e) {
+        console.warn("Profile gate on loading:", e);
+        syncTimeout = setTimeout(() => {
+          if (!cancelled) fetchFreshData();
+        }, 5000);
+      }
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+      if (syncTimeout) clearTimeout(syncTimeout);
+    };
   }, []);
 
   return (

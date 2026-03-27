@@ -1,3 +1,4 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import { PRIMARY_COLOR } from "@/constants/constants";
 import { EventExpense } from "@/types/model";
 import { API_BASE_URL } from "@/utils/constants";
@@ -9,17 +10,7 @@ import { set } from "date-fns";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
-import {
-    ActivityIndicator,
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
-} from "react-native";
+import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 
 export default function ExpensesScreen() {
@@ -58,7 +49,7 @@ export default function ExpensesScreen() {
   
       const res = await fetch(
         `${API_BASE_URL}/events/${eventId}/expenses`,
-        { headers: { Authorization: token } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
   
       if (!res.ok) return;
@@ -122,7 +113,7 @@ export default function ExpensesScreen() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token || "",
+          Authorization: `Bearer ${token || ""}`,
         },
         body: JSON.stringify({
           amount: parseFloat(amount),
@@ -183,7 +174,7 @@ export default function ExpensesScreen() {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
-            Authorization: token || "",
+            Authorization: `Bearer ${token || ""}`,
           },
           body: JSON.stringify({
             amount: parseFloat(amount),
@@ -247,7 +238,7 @@ export default function ExpensesScreen() {
         `${API_BASE_URL}/events/${eventId}/expenses/${expenseToDelete.expense_id}`,
         {
           method: "DELETE",
-          headers: { Authorization: token || "" },
+          headers: { Authorization: `Bearer ${token || ""}` },
         }
       );
 

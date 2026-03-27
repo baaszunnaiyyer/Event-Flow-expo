@@ -8,7 +8,7 @@ const fetchAndSaveData = async (userId, token) => {
   try {
     const response = await fetch(`https://your-api-url.com/sync-data/${userId}`, {
       headers: {
-        Authorization: token,
+        Authorization: `Bearer ${token}`,
       },
     });
 

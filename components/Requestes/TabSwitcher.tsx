@@ -1,6 +1,7 @@
 // components/Requests/TabSwitcher.tsx
+import { Text } from "@/components/AppTypography";
 import React from "react";
-import { Pressable, View, Text } from "react-native";
+import { Pressable, View } from "react-native";
 import { notificationStyles as styles } from "@/styles/Notification.styles";
 
 export default function TabSwitcher({ activeTab, setActiveTab } : any) {

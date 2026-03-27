@@ -1,19 +1,11 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import { handleSignOut, useSettingsData } from "@/hooks/useSettingsData";
 import { API_BASE_URL } from "@/utils/constants";
 import { Feather, Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { useState } from "react";
-import {
-  ActivityIndicator,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Modal, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 
 const PrivacyPolicyScreen = () => {
@@ -59,7 +51,7 @@ const PrivacyPolicyScreen = () => {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           confirmation_name: confirmationName.trim(),

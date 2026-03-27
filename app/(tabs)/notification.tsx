@@ -1,5 +1,6 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import React, { useRef, useState } from 'react';
-import { Pressable, SafeAreaView, TextInput, View, Text, ActivityIndicator, RefreshControl  } from 'react-native';
+import { Pressable, SafeAreaView, View, ActivityIndicator, RefreshControl, Image } from "react-native";
 import {
   ScrollView,
   GestureHandlerRootView,
@@ -104,7 +105,14 @@ function Requestes() {
                 <Text style={{ textAlign: "center", marginTop: 20, fontSize : 15, color : "#666" }}>Swipe Left and Right to response</Text>
               </>
             ) : (
+              <>
               <Text style={{ textAlign: "center", marginTop: 20, fontSize : 15, color : "#666" }}>No Requests Found</Text>
+              <Image
+                source={require("../../assets/images/SleepingCat.gif")}
+                style={{ width: 200, height: 200, alignSelf: "center", marginTop: 20 }}
+                resizeMode="contain"
+              />
+              </>
             )
           ) : (
             filteredTeamRequests.length > 0 ? (
@@ -121,7 +129,14 @@ function Requestes() {
               <Text style={{ textAlign: "center", marginTop: 20, fontSize : 15, color : "#666" }}>Swipe Left and Right to response</Text>
             </>
             ) : (
+              <>
               <Text style={{ textAlign: "center", marginTop: 20, fontSize : 15, color : "#666" }}>No Requests Found</Text>
+              <Image
+                source={require("../../assets/images/SleepingCat.gif")}
+                style={{ width: 200, height: 200, alignSelf: "center", marginTop: 20 }}
+                resizeMode="contain"
+              />
+              </>
             )
           )}
         </ScrollView>

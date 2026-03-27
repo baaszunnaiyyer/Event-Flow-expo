@@ -1,22 +1,16 @@
+import { Text } from "@/components/AppTypography";
 import { PRIMARY_COLOR } from "@/constants/constants";
 import { BranchMember, TeamMember } from "@/types/model";
 import { API_BASE_URL } from "@/utils/constants";
+import { syncEventsWithNestedData } from "@/utils/db/Events";
 import { db } from "@/utils/db/schema";
 import { DeleteEventNotification } from "@/utils/Notifications/EventNotifications";
+import { formatEventDate, formatEventDateRange } from "@/utils/dateTime";
 import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 
 type User = {
@@ -26,7 +20,6 @@ type User = {
 };
 
 type EventState = "Todo" | "InProgress" | "Completed";
-
 
 type Team = {
   team_id: string;
@@ -75,8 +68,22 @@ type FormattedEvent = Event & {
   team: (Team & { team_members?: TeamMember[] }) | null;
 };
 
+/** SQLite stores by_day as comma-separated text or null; avoid calling .replace on null. */
+function parseByDayFromSqlite(raw: unknown): string[] {
+  if (raw == null) return [];
+  const s = String(raw).trim();
+  if (s === "" || s === "[]") return [];
+  return s
+    .replace(/^\[|\]$/g, "")
+    .split(",")
+    .map((day) => day.trim())
+    .filter(Boolean);
+}
+
 export default function EventDetailScreen() {
-  const { eventId } = useLocalSearchParams();
+  const params = useLocalSearchParams<{ eventId?: string | string[] }>();
+  const rawEventId = params.eventId;
+  const eventId = Array.isArray(rawEventId) ? rawEventId[0] : rawEventId;
   const router = useRouter();
 
   const [event, setEvent] = useState<Event | null>(null);
@@ -85,13 +92,48 @@ export default function EventDetailScreen() {
   const [buttonLoading, setButtonLoading] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false)
   const [edit, setEdit] = useState(false)
-
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchEventDetails = async () => {
       setLoading(true);
+      setLoadError(null);
+      setEvent(null);
       try {
-        const SQLitedata = await db.getFirstAsync<any>("SELECT * FROM events WHERE event_id = ?", [String(eventId)])
+        if (!eventId) {
+          setLoadError("Missing event id.");
+          return;
+        }
+
+        let SQLitedata = await db.getFirstAsync<any>(
+          "SELECT * FROM events WHERE event_id = ?",
+          [String(eventId)]
+        );
+
+        if (!SQLitedata) {
+          const token = await SecureStore.getItemAsync("userToken");
+          if (token) {
+            const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (res.ok) {
+              const payload = await res.json();
+              await syncEventsWithNestedData([payload]);
+              SQLitedata = await db.getFirstAsync<any>(
+                "SELECT * FROM events WHERE event_id = ?",
+                [String(eventId)]
+              );
+            }
+          }
+        }
+
+        if (!SQLitedata) {
+          setLoadError(
+            "This event is not in your offline cache. Pull to refresh on the events list, or check your connection."
+          );
+          return;
+        }
+
         const Foramted : any = {
           ...SQLitedata,
           branch : SQLitedata?.branch_id
@@ -106,9 +148,7 @@ export default function EventDetailScreen() {
           team : SQLitedata?.team_id
             ? (await db.getFirstAsync<Team>("SELECT * FROM teams WHERE team_id = ?", [SQLitedata.team_id]))
             : null,
-          by_day : SQLitedata.by_day !== "[]"
-            ? SQLitedata.by_day.replace(/^\[|\]$/g, "").split(",").map((day : any) => day.trim())
-            : [],
+          by_day: parseByDayFromSqlite(SQLitedata.by_day),
           is_recurring : Boolean(SQLitedata.is_recurring)
         }        
 
@@ -127,7 +167,7 @@ export default function EventDetailScreen() {
         // console.log(Foramted);
         // const token = await SecureStore.getItemAsync("userToken");
         // const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
-        //   headers: { Authorization: `${token}` },
+        //   headers: { Authorization: `Bearer ${token}` },
         // });
 
         // if(!res.ok){
@@ -156,6 +196,8 @@ export default function EventDetailScreen() {
           setIsAdmin(true)
         }
       } catch (err) {
+        console.error("Event detail load error:", err);
+        setLoadError("Could not load event details.");
         Alert.alert("Error fetching event details.");
       } finally {
         setLoading(false);
@@ -164,36 +206,6 @@ export default function EventDetailScreen() {
 
   fetchEventDetails();
 }, [eventId, trigger]); // ✅ no Admin / isAdmin here
-
-
-
-  const formatDateRange = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    const sameDay =
-      startDate.getDate() === endDate.getDate() &&
-      startDate.getMonth() === endDate.getMonth();
-
-    const options: Intl.DateTimeFormatOptions = {
-      month: "short",
-      day: "numeric",
-    };
-
-    const timeOptions: Intl.DateTimeFormatOptions = {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    };
-
-    const formattedDate = startDate.toLocaleDateString("en-US", options);
-    const startTime = startDate.toLocaleTimeString("en-US", timeOptions);
-    const endTime = endDate.toLocaleTimeString("en-US", timeOptions);
-
-    return sameDay
-      ? `${formattedDate} • ${startTime} - ${endTime}`
-      : `${startDate.toLocaleDateString("en-US", options)} ${startTime} - ${endDate.toLocaleDateString("en-US", options)} ${endTime}`;
-  };
 
 
   const updateEventState = async (eventId: string, newState: EventState) => {
@@ -206,7 +218,7 @@ export default function EventDetailScreen() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ state: newState }),
       });
@@ -250,7 +262,7 @@ export default function EventDetailScreen() {
       const token = await SecureStore.getItemAsync("userToken");
       const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
         method: "DELETE",
-        headers: { Authorization: `${token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (res.ok) {
         Toast.show({
@@ -274,11 +286,24 @@ export default function EventDetailScreen() {
     }
   };
 
-
-  if (loading || !event) {
+  if (loading) {
     return (
       <View style={styles.center}>
         <ActivityIndicator size="large" color="#090040" />
+      </View>
+    );
+  }
+
+  if (loadError || !event) {
+    return (
+      <View style={[styles.center, { paddingHorizontal: 24 }]}>
+        <Text style={styles.errorText}>{loadError ?? "Event not found."}</Text>
+        <TouchableOpacity
+          style={styles.retryButton}
+          onPress={() => setTrigger((t) => !t)}
+        >
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -314,7 +339,7 @@ export default function EventDetailScreen() {
           )}
 
           <Text style={styles.label}>Schedule</Text>
-          <Text style={styles.text}>{formatDateRange(event.start_time, event.end_time)}</Text>
+          <Text style={styles.text}>{formatEventDateRange(event.start_time, event.end_time)}</Text>
           <View style={styles.divider} />
 
           {event.location && (
@@ -342,7 +367,7 @@ export default function EventDetailScreen() {
 
               {event.until && (
                 <Text style={styles.text}>
-                  Until {new Date(event.until).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                  Until {formatEventDate(event.until)}
                 </Text>
               )}
 
@@ -538,6 +563,22 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  errorText: {
+    fontSize: 16,
+    color: "#555",
+    textAlign: "center",
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: "#090040",
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+  },
   editButton: {
     position: "absolute",
     top: 40,
@@ -707,6 +748,5 @@ expenseButtonText: {
   fontWeight: "600",
   color: PRIMARY_COLOR,
 },
-
 
 });

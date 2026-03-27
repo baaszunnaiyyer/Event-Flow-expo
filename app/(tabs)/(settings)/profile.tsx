@@ -1,3 +1,4 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import { db } from "@/utils/db/schema";
 import { upsertTable } from "@/utils/db/SyncDB";
 import { Feather, Ionicons } from "@expo/vector-icons";
@@ -5,18 +6,7 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { useEffect, useState } from "react";
-import {
-  Alert,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, TouchableOpacity, View } from "react-native";
 import Toast from "react-native-toast-message";
 import { API_BASE_URL } from "../../../utils/constants";
 
@@ -115,7 +105,7 @@ export default function ProfileScreen() {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `${token}`,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify(payload),
       });

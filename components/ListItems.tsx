@@ -1,5 +1,6 @@
+import { Text } from "@/components/AppTypography";
 import React from 'react';
-import { Button, Dimensions, StyleSheet, Text, Vibration, View } from 'react-native';
+import { Button, Dimensions, StyleSheet, Vibration, View } from "react-native";
 import {
   PanGestureHandler,
   PanGestureHandlerGestureEvent,
@@ -13,6 +14,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { TaskInterface } from '../app/(tabs)/notification';
+import { formatEventDate, formatEventDateTime, formatEventTime } from '@/utils/dateTime';
 import { FontAwesome5, Ionicons } from '@expo/vector-icons';
 
 interface ListItemProps
@@ -143,15 +145,15 @@ const ListItem: React.FC<ListItemProps> = ({
             </Text>
 
             <Text style={styles.timeText}>
-              <Ionicons name="alarm-outline" size={10}></Ionicons> : {task.start_time ? new Date(task.start_time).toLocaleString() : 'N/A'} -{" "}
-              {task.end_time ? new Date(task.end_time).toLocaleTimeString() : 'N/A'}
+              <Ionicons name="alarm-outline" size={10}></Ionicons> : {task.start_time ? formatEventDateTime(task.start_time) : 'N/A'} -{" "}
+              {task.end_time ? formatEventTime(task.end_time) : 'N/A'}
             </Text>
           </View>
           {task.is_recurring &&
           <View style={{flexDirection: 'row', justifyContent: "space-between"}}>
             <Text style={styles.timeText}><Ionicons name='speedometer-outline' size={10}></Ionicons> : {task.frequency}</Text>
             {task.until && (
-              <Text style={styles.timeText}><Ionicons name='golf-outline' size={10}></Ionicons> {new Date(task.until).toLocaleDateString()}</Text>
+              <Text style={styles.timeText}><Ionicons name='golf-outline' size={10}></Ionicons> {formatEventDate(task.until)}</Text>
             )}
           </View>
           }
@@ -250,6 +252,5 @@ timeText: {
 },
   
 });
-
 
 export default ListItem;

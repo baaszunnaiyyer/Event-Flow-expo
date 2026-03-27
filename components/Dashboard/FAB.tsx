@@ -1,8 +1,8 @@
-import React, { useRef, useState } from "react";
-import { View, TouchableOpacity, Pressable, Animated, Easing } from "react-native";
+import { dashboardStyles as styles } from "@/styles/Dashboard.styles";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import { dashboardStyles as styles } from "@/styles/Dashboard.styles";
+import React, { useRef, useState } from "react";
+import { Animated, Easing, Pressable, TouchableOpacity, View } from "react-native";
 
 type Anim = Animated.Value | Animated.AnimatedInterpolation<any> | Animated.ValueXY;
 

@@ -1,17 +1,6 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  TouchableOpacity,
-  ActivityIndicator,
-} from "react-native";
+import { View, Pressable, StyleSheet, Alert, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity, ActivityIndicator } from "react-native";
 import { API_BASE_URL } from "@/utils/constants";
 import Toast from "react-native-toast-message";
 import * as SecureStore  from "expo-secure-store"
@@ -64,7 +53,7 @@ const CreateTeamScreen = () => {
       const response = await fetch(`${API_BASE_URL}/teams/${team_id}/${branch_id}`, {
         method: "POST",
         headers: { 
-            Authorization : `${token}`,
+            Authorization : `Bearer ${token}`,
             "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });

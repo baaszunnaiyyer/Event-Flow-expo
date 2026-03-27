@@ -1,3 +1,5 @@
+import { Text, TextInput } from "@/components/AppTypography";
+import { BACKGROUND_COLOR, PRIMARY_COLOR } from "@/constants/constants";
 import { handleSignOut, useSettingsData } from "@/hooks/useSettingsData";
 import { API_BASE_URL } from "@/utils/constants";
 import {
@@ -5,33 +7,48 @@ import {
   FontAwesome5,
   Ionicons,
   MaterialCommunityIcons,
-  MaterialIcons
+  MaterialIcons,
 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import * as SecureStore from "expo-secure-store";
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
-  Text,
-  TextInput,
   TouchableOpacity,
   View,
+  Image
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Toast from "react-native-toast-message";
+import { FadeInEnter } from "@/components/FadeInEnter";
+
+const settingsCardDelayMs = (index: number) => 70 + index * 70;
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const {loading, userInfo} = useSettingsData();
-  
-  // Report User State
+  const insets = useSafeAreaInsets();
+  const { loading, userInfo } = useSettingsData();
+
   const [showReportModal, setShowReportModal] = useState(false);
   const [reportEmail, setReportEmail] = useState("");
   const [reportReason, setReportReason] = useState("");
   const [reportLoading, setReportLoading] = useState(false);
-  
+
+  const initials = useMemo(
+    () => getInitials(userInfo?.name ?? ""),
+    [userInfo?.name]
+  );
 
   const handleReportUser = async () => {
     if (!reportEmail.trim()) {
@@ -68,7 +85,7 @@ export default function SettingsScreen() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token,
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           email: reportEmail.trim(),
@@ -101,81 +118,118 @@ export default function SettingsScreen() {
     }
   };
 
+  const bottomPad = Math.max(insets.bottom, 12) + 92;
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
+    <ScrollView
+      contentContainerStyle={[
+        styles.screen,
+        {
+          paddingTop: Math.max(insets.top, 12) + 8,
+          paddingBottom: bottomPad,
+        },
+      ]}
+      showsVerticalScrollIndicator={false}
+    >
       {loading ? (
-        <ActivityIndicator size="large" color="#090040" style={{ marginTop: 40 }} />
+        <ActivityIndicator size="large" color={PRIMARY_COLOR} style={styles.loader} />
       ) : (
         <>
-          {/* Profile Section */}
-          <View style={styles.profileCard}>
-            <Text style={styles.profileName}>{userInfo.name}</Text>
-            <Text style={styles.profileInfo}>{userInfo.email}</Text>
-            <Text style={styles.profileInfo}>{userInfo.phone}</Text>
-          </View>
+          <FadeInEnter delayMs={settingsCardDelayMs(0)} duration={400} style={styles.profileSection}>
+            <View style={styles.avatarOuter}>
+              <View style={styles.avatarInner}>
+                {/* <Text style={styles.avatarText}>{initials}</Text> */}
+                <Image
+                  source={require("../../../assets/images/Settings.gif")}
+                  style={{width: "100%", height: "100%", position: "absolute", borderRadius: 34, alignItems: "center", justifyContent: "center", alignSelf: "center"}}
+                  resizeMode="cover"
+                />
+              </View>
+            </View>
+            <View style={styles.profileTextBlock}>
+              <Text style={styles.profileName} numberOfLines={2}>
+                {userInfo.name}
+              </Text>
+              <View style={styles.metaRow}>
+                <Ionicons name="mail-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {userInfo.email}
+                </Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Ionicons name="call-outline" size={14} color="#9CA3AF" />
+                <Text style={styles.metaText} numberOfLines={1}>
+                  {userInfo.phone}
+                </Text>
+              </View>
+            </View>
+          </FadeInEnter>
 
-          {/* Options Section */}
-          <View style={styles.optionsBox}>
-            <SettingsOption
-              icon={<Feather name="lock" size={20} color="#090040" />}
-              label="Privacy Policy"
-              onPress={() => router.push("./privacy_policy")}
-            />
-            {/* <SettingsOption
-              icon={<Ionicons name="notifications-outline" size={20} color="#090040" />}
-              label="Notifications"
-              onPress={() => router.push("./notifications")}
-            /> */}
-            <SettingsOption
-              icon={<Feather name="user" size={20} color="#090040" />}
-              label="Profile"
-              onPress={() => router.push("./profile")}
-            />
-            <SettingsOption
-              icon={<MaterialIcons name="info-outline" size={20} color="#090040" />}
-              label="About Us"
-              onPress={() => router.push("./about_us")}
-            />
-            {/* <SettingsOption
-              icon={<Feather name="sun" size={20} color="#090040" />}
-              label="Appearance"
-              onPress={() => router.push("./appearance")}
-            /> */}
-            <SettingsOption
-              icon={<MaterialCommunityIcons name="lifebuoy" size={20} color="#090040" />}
-              label="Support"
-              onPress={() => router.push("./support")}
-            />
-            <SettingsOption
-              icon={<MaterialIcons name="report-problem" size={20} color="#090040" />}
-              label="Report User"
-              onPress={() => setShowReportModal(true)}
-              isbutton={true}
-            />
-            <SettingsOption
-              icon={<FontAwesome5 name="sign-out-alt" size={20} color="#090040" />}
-              label="Sign Out"
-              isLogout
+          <FadeInEnter delayMs={settingsCardDelayMs(1)} duration={400}>
+            <Text style={styles.sectionLabel}>Account & help</Text>
+            <View style={styles.menuCard}>
+              <SettingsOption
+                icon={<Feather name="lock" size={18} color={PRIMARY_COLOR} />}
+                label="Privacy Policy"
+                onPress={() => router.push("./privacy_policy")}
+                showDivider={false}
+              />
+              <SettingsOption
+                icon={<Feather name="user" size={18} color={PRIMARY_COLOR} />}
+                label="Profile"
+                onPress={() => router.push("./profile")}
+                showDivider
+              />
+              <SettingsOption
+                icon={<MaterialIcons name="info-outline" size={20} color={PRIMARY_COLOR} />}
+                label="About Us"
+                onPress={() => router.push("./about_us")}
+                showDivider
+              />
+              <SettingsOption
+                icon={<MaterialCommunityIcons name="lifebuoy" size={20} color={PRIMARY_COLOR} />}
+                label="Support"
+                onPress={() => router.push("./support")}
+                showDivider
+              />
+              <SettingsOption
+                icon={<MaterialIcons name="report-problem" size={20} color={PRIMARY_COLOR} />}
+                label="Report User"
+                onPress={() => setShowReportModal(true)}
+                hideChevron
+                showDivider
+              />
+            </View>
+          </FadeInEnter>
+
+          <FadeInEnter delayMs={settingsCardDelayMs(2)} duration={400}>
+            <TouchableOpacity
+              style={styles.signOutCard}
               onPress={handleSignOut}
-            />
-          </View>
+              activeOpacity={0.75}
+            >
+              <View style={styles.iconWellMuted}>
+                <FontAwesome5 name="sign-out-alt" size={16} color="#B91C1C" />
+              </View>
+              <Text style={styles.signOutLabel}>Sign out</Text>
+              <Feather name="chevron-right" size={18} color="#D1D5DB" />
+            </TouchableOpacity>
+          </FadeInEnter>
         </>
       )}
 
-      {/* Report User Modal */}
       <Modal
         visible={showReportModal}
         animationType="slide"
-        transparent={true}
+        transparent
         onRequestClose={() => setShowReportModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, { paddingBottom: Math.max(insets.bottom, 24) }]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Report User</Text>
-              <TouchableOpacity onPress={() => setShowReportModal(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+              <TouchableOpacity onPress={() => setShowReportModal(false)} hitSlop={12}>
+                <Ionicons name="close" size={24} color="#374151" />
               </TouchableOpacity>
             </View>
 
@@ -188,7 +242,7 @@ export default function SettingsScreen() {
                 onChangeText={setReportEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
-                placeholderTextColor="#999"
+                placeholderTextColor="#9CA3AF"
               />
 
               <Text style={styles.inputLabel}>Reason for Reporting</Text>
@@ -199,7 +253,7 @@ export default function SettingsScreen() {
                 onChangeText={setReportReason}
                 multiline
                 numberOfLines={4}
-                placeholderTextColor="#999"
+                placeholderTextColor="#9CA3AF"
               />
 
               <TouchableOpacity
@@ -217,7 +271,6 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
-
     </ScrollView>
   );
 }
@@ -225,142 +278,229 @@ export default function SettingsScreen() {
 function SettingsOption({
   icon,
   label,
-  isLogout = false,
-  isbutton = false,
   onPress,
+  showDivider,
+  hideChevron,
 }: {
   icon: React.ReactNode;
   label: string;
-  isLogout?: boolean;
-  isbutton?: boolean;
   onPress?: () => void;
+  showDivider?: boolean;
+  hideChevron?: boolean;
 }) {
   return (
-    <TouchableOpacity
-      style={[styles.option, isLogout && styles.logoutOption]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={styles.optionRow}>
-        {icon}
-        <Text style={[styles.optionText, isLogout && styles.logoutText]}>{label}</Text>
-      </View>
-      {isbutton !== true && <Feather name="chevron-right" size={20} color="#ccc" />}
-    </TouchableOpacity>
+    <>
+      {showDivider ? <View style={styles.menuDivider} /> : null}
+      <TouchableOpacity
+        style={styles.menuRow}
+        onPress={onPress}
+        activeOpacity={0.65}
+      >
+        <View style={styles.iconWell}>{icon}</View>
+        <Text style={styles.menuLabel}>{label}</Text>
+        {!hideChevron ? (
+          <Feather name="chevron-right" size={18} color="#C4C4CC" />
+        ) : (
+          <View style={{ width: 18 }} />
+        )}
+      </TouchableOpacity>
+    </>
   );
 }
 
-// Styles
 const styles = StyleSheet.create({
-  container: {
-    paddingVertical: 40,
-    paddingBottom: 110,
-    paddingHorizontal: 24,
-    backgroundColor: "rgba(247, 247, 247, 1)",
+  screen: {
+    paddingHorizontal: 20,
+    backgroundColor: BACKGROUND_COLOR,
+    flexGrow: 1,
   },
-  profileCard: {
-    backgroundColor: "#090040",
-    padding: 24,
-    borderRadius: 16,
+  loader: {
+    marginTop: 48,
+  },
+  profileSection: {
+    flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    marginBottom: 32,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: "#ECECF0",
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0f172a",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.06,
+        shadowRadius: 16,
+      },
+      android: { elevation: 3 },
+    }),
+  },
+  avatarOuter: {
+    padding: 3,
+    borderRadius: 999,
+    backgroundColor: `${PRIMARY_COLOR}18`,
+  },
+  avatarInner: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: BACKGROUND_COLOR,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    fontSize: 22,
+    color: "#fff",
+  },
+  profileTextBlock: {
+    flex: 1,
+    marginLeft: 16,
+    minWidth: 0,
   },
   profileName: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "rgba(247, 247, 247, 1)",
+    fontSize: 20,
+    color: "#111827",
+    marginBottom: 10,
+  },
+  metaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     marginBottom: 6,
   },
-  profileInfo: {
-    fontSize: 16,
-    fontWeight: "200",
-    color: "rgba(247, 247, 247, 1)",
+  metaIcon: {
+    color: "#9CA3AF",
   },
-  optionsBox: {
+  metaText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#6B7280",
+  },
+  sectionLabel: {
+    fontSize: 13,
+    color: "#6B7280",
+    marginBottom: 10,
+    marginLeft: 4,
+    letterSpacing: 0.3,
+  },
+  menuCard: {
     backgroundColor: "#fff",
     borderRadius: 16,
-    padding: 8,
-    gap: 4,
+    borderWidth: 1,
+    borderColor: "#ECECF0",
+    overflow: "hidden",
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#0f172a",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.05,
+        shadowRadius: 12,
+      },
+      android: { elevation: 2 },
+    }),
   },
-  option: {
+  menuDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#ECECF0",
+    marginLeft: 64,
+  },
+  menuRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    minHeight: 52,
   },
-  optionRow: {
+  iconWell: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  menuLabel: {
+    flex: 1,
+    fontSize: 16,
+    color: "#111827",
+  },
+  signOutCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 16,
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "#FEE2E2",
+    backgroundColor: "#FFFBFB",
   },
-  optionText: {
+  iconWellMuted: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: "#FEF2F2",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+  signOutLabel: {
+    flex: 1,
     fontSize: 16,
-    color: "#090040",
-  },
-  logoutOption: {
-    backgroundColor: "#c5bfcfff",
-  },
-  logoutText: {
-    color: "#090040",
-    fontWeight: "600",
+    color: "#B91C1C",
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    backgroundColor: "rgba(0, 0, 0, 0.45)",
     justifyContent: "flex-end",
   },
   modalContent: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    paddingTop: 20,
-    paddingBottom: 40,
-    maxHeight: "80%",
+    paddingTop: 8,
+    maxHeight: "85%",
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#E5E7EB",
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: "700",
-    color: "#1a1a1a",
+    fontSize: 18,
+    color: "#111827",
   },
   modalBody: {
     paddingHorizontal: 20,
     paddingTop: 20,
   },
   inputLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#333",
+    fontSize: 13,
+    color: "#4B5563",
     marginBottom: 8,
   },
   input: {
-    backgroundColor: "#f5f5f5",
+    backgroundColor: "#F9FAFB",
     borderRadius: 12,
     padding: 14,
     fontSize: 16,
-    color: "#1a1a1a",
+    color: "#111827",
     marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
   },
   textArea: {
-    height: 100,
+    height: 108,
     textAlignVertical: "top",
   },
   submitButton: {
-    backgroundColor: "#090040",
+    backgroundColor: PRIMARY_COLOR,
     borderRadius: 12,
     padding: 16,
     alignItems: "center",
@@ -369,6 +509,5 @@ const styles = StyleSheet.create({
   submitButtonText: {
     color: "#fff",
     fontSize: 16,
-    fontWeight: "600",
   },
 });

@@ -1,23 +1,27 @@
 import {  View, StyleSheet, Animated, useWindowDimensions } from "react-native";
 
 
-type Slide = {
-  id: string;
-  title: string;
-  image: string;
-};
+export type PaginatorSlide = { id: string };
 
 type PaginatorProps = {
-  data: Slide[];
+  data: readonly PaginatorSlide[];
   scrollx: Animated.Value;
 };
 
-export default function Paginator({data, scrollx} : PaginatorProps) {
+export default function Paginator({ data, scrollx }: PaginatorProps) {
 
     const {width} = useWindowDimensions()
 
   return (
-    <View style={{flexDirection : "row", height : 64, }}>
+    <View
+      style={{
+        flexDirection: "row",
+        height: 64,
+        width: "100%",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
         {
             data.map((_, i) =>{
                 const inputRange = [(i-1) * width, i * width, (i+1) * width]

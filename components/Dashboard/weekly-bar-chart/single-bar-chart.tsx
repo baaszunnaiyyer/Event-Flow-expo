@@ -1,9 +1,8 @@
-import { format } from 'date-fns';
-import { Text, View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated';
+import { Text } from "@/components/AppTypography";
+import { PRIMARY_COLOR } from "@/constants/constants";
+import { format } from "date-fns";
+import { View } from "react-native";
+import Animated, { useAnimatedStyle, withTiming } from "react-native-reanimated";
 
 export type Day = {
   day: Date;
@@ -23,36 +22,52 @@ export const SingleBarChart = ({
 }: SingleBarChartProps) => {
   const rStyle = useAnimatedStyle(() => {
     return {
-      height: withTiming(maxHeight * day.value),
-      opacity: withTiming(day.value),
+      height: withTiming(Math.max(maxHeight * day.value, day.value > 0 ? 6 : 0)),
+      opacity: withTiming(day.value > 0 ? 1 : 0),
     };
   }, [day.value, maxHeight]);
 
   return (
-    <View>
-      <Animated.View
-        style={[
-          {
-            width: width,
-            backgroundColor: "#090040",
-            borderRadius: 15,
-            borderCurve: 'continuous',
-          },
-          rStyle,
-        ]}
-      />
-      <Text
+    <View style={{ width, alignItems: "center" }}>
+      <View
         style={{
-          width: width,
-          textAlign: 'center',
-          fontSize: 12,
-          marginTop: 5,
-          color: '#090040',
-          fontFamily: 'FiraCode-Regular',
-          textTransform: 'lowercase',
+          height: maxHeight,
+          width,
+          justifyContent: "flex-end",
         }}
       >
-        {format(day.day, 'eeeee')}
+        <View
+          style={{
+            position: "absolute",
+            bottom: 0,
+            width,
+            height: maxHeight,
+            backgroundColor: "#E8EAEF",
+            borderRadius: 15,
+          }}
+        />
+        <Animated.View
+          style={[
+            {
+              width,
+              backgroundColor: PRIMARY_COLOR,
+              borderRadius: 15,
+            },
+            rStyle,
+          ]}
+        />
+      </View>
+      <Text
+        style={{
+          width,
+          textAlign: "center",
+          fontSize: 12,
+          marginTop: 8,
+          color: "#6B7280",
+          textTransform: "lowercase",
+        }}
+      >
+        {format(day.day, "eeeee")}
       </Text>
     </View>
   );

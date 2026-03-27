@@ -1,13 +1,10 @@
-import { format } from 'date-fns';
-import {
-  ScrollView,
-  StyleSheet,
-  Text,
-  useWindowDimensions,
-  View,
-} from 'react-native';
+import { Text } from "@/components/AppTypography";
+import { PRIMARY_COLOR } from "@/constants/constants";
+import { Ionicons } from "@expo/vector-icons";
+import { format } from "date-fns";
+import { ScrollView, StyleSheet, useWindowDimensions, View } from "react-native";
 
-import { SingleBarChart, type Day } from './single-bar-chart';
+import { SingleBarChart, type Day } from "./single-bar-chart";
 
 type Week = Day[];
 
@@ -75,15 +72,21 @@ export const WeeklyBarChart = ({
           return (
             <View
               key={index}
-              style={{
-                height: ScrollViewHeight,
-                width: windowWidth,
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}>
-              <Text style={styles.label}>
-                week of {format(week[0].day, 'd MMMM')}
-              </Text>
+              style={[
+                styles.weekStripPage,
+                { height: ScrollViewHeight, width: windowWidth },
+              ]}
+              accessibilityLabel="Swipe left or right to change week"
+            >
+              <View style={styles.weekStripCluster}>
+                <Ionicons name="chevron-back" size={20} color={PRIMARY_COLOR} />
+                <View style={styles.labelPill}>
+                  <Text style={styles.label}>
+                    Week of {format(week[0].day, "d MMMM")}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color={PRIMARY_COLOR} />
+              </View>
             </View>
           );
         })}
@@ -93,9 +96,28 @@ export const WeeklyBarChart = ({
 };
 
 const styles = StyleSheet.create({
+  weekStripPage: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  weekStripCluster: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    flexShrink: 1,
+  },
+  labelPill: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: "#F3F4F6",
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
   label: {
-    color: '#090040',
-    fontSize: 14,
-    fontFamily: 'FiraCode-Bold',
+    color: "#374151",
+    fontSize: 13,
+    letterSpacing: 0.2,
   },
 });

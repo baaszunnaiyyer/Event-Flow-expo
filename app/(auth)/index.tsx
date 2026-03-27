@@ -1,29 +1,19 @@
-import { BACKGROUND_COLOR, PRIMARY_COLOR } from "@/constants/constants";
+import { Text, TextInput } from "@/components/AppTypography";
+import { BACKGROUND_COLOR, PRIMARY_COLOR, getAuthHeroImageStyle } from "@/constants/constants";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import * as WebBrowser from "expo-web-browser";
 import React, { useEffect, useLayoutEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Dimensions,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Dimensions, Image, KeyboardAvoidingView, Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import { API_BASE_URL } from "../../utils/constants";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GoogleAuthProvider, getAuth, signInWithCredential } from '@react-native-firebase/auth';
 import {
-  GoogleSignin,
-  isErrorWithCode,
-  statusCodes,
+    GoogleSignin,
+    isErrorWithCode,
+    statusCodes,
 } from '@react-native-google-signin/google-signin';
 import Toast from "react-native-toast-message";
 
@@ -39,12 +29,12 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
-  
+
   GoogleSignin.configure({
     webClientId: '556429365376-7s2h4hid83pfn2gv14ga627pjh9un5ai.apps.googleusercontent.com',
   });
 
-  const signIn = async () => {    
+  const signIn = async () => {
     setLoading(true)
     try {
       // Ensure Play Services are available
@@ -52,53 +42,44 @@ export default function LoginScreen() {
 
       // ✅ Force sign out first so popup always appears
       await GoogleSignin.signOut();
-      
+
       // Get the users ID token
       const signInResult = await GoogleSignin.signIn();
+      if (!signInResult?.data?.idToken) {
+        // User cancelled or no token
+        return;
+      }
 
-      const response  = await fetch(`${API_BASE_URL}/auth/google`, {
-        method : "POST",
+      const response = await fetch(`${API_BASE_URL}/auth/google`, {
+        method: "POST",
         headers: {
           "Content-Type": "application/json"
         },
-        body : JSON.stringify({idToken : signInResult.data?.idToken})
+        body: JSON.stringify({ idToken: signInResult.data?.idToken })
       });
 
-      const data = await response.json(); // 👈 parse actual JSON
+      const data = await response.json();
 
-      if (response.status === 201) {
-        
-      } else if (response.status === 200) {
+      if (response.status === 201 || response.status === 200) {
+        if (!data.token || !data.user?.user_id) {
+          Toast.show({ type: "error", text1: "Error", text2: "Invalid response from server." });
+          return;
+        }
         await SecureStore.setItemAsync("userToken", data.token);
-        await SecureStore.setItemAsync("userId", data.user.user_id)
-
+        await SecureStore.setItemAsync("userId", data.user.user_id);
         router.replace("./loading");
+        return;
       } else {
         Toast.show({
-          type : 'error',
-          text1 : "Error",
-          text2 : `Unexpected status: ${response.status}`
+          type: 'error',
+          text1: "Error",
+          text2: `Unexpected status: ${response.status}`
         });
         setLoading(false);
         return;
       }
 
-      // Try the new style of google-sign in result, from v13+ of that module
-      const idToken = signInResult.data?.idToken;      
-      
-      if (!idToken) {
-        throw new Error('No ID token found');
-      }
-
-      // Create a Google credential with the token
-      const googleCredential = GoogleAuthProvider.credential(idToken);
-      
-
-      setLoading(false)
-      // Sign-in the user with Firebase
-      return signInWithCredential(getAuth(), googleCredential);
-
-    } catch (error : any) {
+    } catch (error: any) {
       // Enhanced error logging for debugging
       console.error("Google Sign-In Error Details:", {
         code: error.code,
@@ -106,7 +87,7 @@ export default function LoginScreen() {
         stack: error.stack,
         toString: error.toString()
       });
-      
+
       if (isErrorWithCode(error)) {
         switch (error.code) {
           case statusCodes.IN_PROGRESS:
@@ -165,12 +146,11 @@ export default function LoginScreen() {
       const token = await SecureStore.getItemAsync("userToken");
       const id = await SecureStore.getItemAsync("userId")
       const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
-      console.log(hasOnboarded);
-      if(!hasOnboarded){
+      if (!hasOnboarded) {
         router.replace("/(onboarding)");
         return;
       }
-      else if (token && id) {        
+      else if (token && id) {
         router.replace("/(tabs)");
       }
     };
@@ -192,21 +172,21 @@ export default function LoginScreen() {
 
       if (res.ok && data.token) {
 
-        if(data.status === "active"){
+        if (data.status === "active") {
           await SecureStore.setItemAsync("userToken", data.token);
           await SecureStore.setItemAsync("userId", data.userId)
           router.replace("./loading");
-        }else if (data.status === "pending"){
-          Toast.show({type: 'info', text1 : "Needs Verification", text2: "Please Check Your Email and Activate your account!"})
-        }else {
-          Toast.show({type: 'info', text1 : "Account Deactivated", text2: "Please Contact Our Support Team If you Havent Deactivated This account"})
+        } else if (data.status === "pending") {
+          Toast.show({ type: 'info', text1: "Needs Verification", text2: "Please Check Your Email and Activate your account!" })
+        } else {
+          Toast.show({ type: 'info', text1: "Account Deactivated", text2: "Please Contact Our Support Team If you Havent Deactivated This account" })
         }
       } else {
-        Toast.show({type : 'error', text1 : "Error", text2 : `Login Failed, ${data.message} ` || `Invalid credentials.`});
+        Toast.show({ type: 'error', text1: "Error", text2: `Login Failed, ${data.message} ` || `Invalid credentials.` });
       }
     } catch (error) {
       console.error("Login Error:", error);
-      Toast.show({type:'error', text1 : "Error", text2 : "Error, Something went wrong. Please try again."});
+      Toast.show({ type: 'error', text1: "Error", text2: "Error, Something went wrong. Please try again." });
     } finally {
       setLoading(false);
     }
@@ -216,15 +196,15 @@ export default function LoginScreen() {
     <View style={styles.container}>
       <Image
         source={require("../../assets/images/undraw_stars_5pgw.png")}
-        style={styles.logo}
+        style={getAuthHeroImageStyle()}
         resizeMode="contain"
       />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "padding"}
-        style={{ width: inputWidth }}
+        style={{ width: inputWidth, flex: 1 }}
       >
-        <Text style={styles.title}>Welcome Back!</Text>
+        <Text style={styles.title}>Welcome</Text>
         <Text style={styles.subtitle}>Login to continue</Text>
 
         <TextInput
@@ -260,7 +240,7 @@ export default function LoginScreen() {
         </View>
         {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
-        <TouchableOpacity onPress={()=> router.push('./forgetPassword')} style={styles.forgetPassword}>
+        <TouchableOpacity onPress={() => router.push('./forgetPassword')} style={styles.forgetPassword}>
           <Text style={styles.forgotText}>Forgot Password?</Text>
         </TouchableOpacity>
 
@@ -291,7 +271,7 @@ export default function LoginScreen() {
         >
           {loading ? (
             <ActivityIndicator color={PRIMARY_COLOR} />
-          ): (
+          ) : (
             <>
               <Ionicons name="logo-google" size={20} color="#000" style={{ marginRight: 8 }} />
               <Text style={styles.googleBtnText}>Sign in with Google</Text>
@@ -315,12 +295,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "rgba(247, 247, 247, 1)",
     alignItems: "center",
-    justifyContent: "center",
-  },
-  logo: {
-    width: "65%",
-    height: "20%",
-    marginBottom: 100,
+    justifyContent: "flex-start",
   },
   title: {
     fontSize: 26,
@@ -434,5 +409,4 @@ const styles = StyleSheet.create({
     paddingLeft: 5,
   },
 });
-
 

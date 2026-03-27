@@ -1,13 +1,6 @@
+import { Text } from "@/components/AppTypography";
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Pressable,
-  Alert,
-} from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, Pressable, Alert } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import Toast from "react-native-toast-message";
 import { RouteProp, useRoute } from "@react-navigation/native";
@@ -99,7 +92,7 @@ const UserDetailScreen: React.FC = () => {
         const token = await SecureStore.getItemAsync("userToken");
         const res = await fetch(`${API_BASE_URL}/teams/${team_id}`, {
           headers: {
-            Authorization: `${token}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
         });
@@ -132,7 +125,7 @@ const UserDetailScreen: React.FC = () => {
         }
         const res = await fetch(url, {
           headers: {
-            Authorization: `${token}`,
+            Authorization: `Bearer ${token}`,
           },
         });
 
@@ -232,7 +225,7 @@ const UserDetailScreen: React.FC = () => {
         const res = await fetch(url, {
           method : "PUT",
           headers : {
-            Authorization : `${token}`,
+            Authorization: `Bearer ${token}`,
             "Content-Type": "application/json"
           },
           body : JSON.stringify({role : toRole})
@@ -276,7 +269,7 @@ const UserDetailScreen: React.FC = () => {
         const res = await fetch(url, {
           method : "DELETE",
           headers : {
-            Authorization : `${token}`
+            Authorization: `Bearer ${token}`
           }
         }
         )

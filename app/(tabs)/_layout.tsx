@@ -1,10 +1,14 @@
-import { Tabs } from "expo-router";
+import { API_BASE_URL, APP_FONT_FAMILY } from "@/utils/constants";
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Platform, PermissionsAndroid } from "react-native";
 import {
-  requestPermission,
-  AuthorizationStatus,
+    AuthorizationStatus,
+    requestPermission,
 } from "@react-native-firebase/messaging";
+import { router, Tabs } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { useEffect } from "react";
+import { PermissionsAndroid, Platform } from "react-native";
+import Toast from "react-native-toast-message";
 
 async function requestNotificationPermission(messaging: any) {
   if (Platform.OS === "ios") {
@@ -35,19 +39,47 @@ async function requestNotificationPermission(messaging: any) {
 }
 
 export default function TabsLayout() {
+  useEffect(() => {
+    const validateToken = async () => {
+      try {
+        const token = await SecureStore.getItemAsync("userToken");
+        if (token) {
+          const res = await fetch(`${API_BASE_URL}/auth/validate-token`, {
+            method: "GET",
+            headers: { Authorization: `Bearer ${token}` },
+          });
+
+          if (!res.ok) {
+            console.log("Token invalid in background check, logging out...");
+            await SecureStore.deleteItemAsync("userToken");
+            Toast.show({
+              type: 'error',
+              text1: 'Session Expired',
+              text2: 'Please log in again.'
+            });
+            router.replace("/(auth)");
+          }
+        }
+      } catch (error) {
+        console.error("Background token check failed", error);
+        // Optional: Decide if network error should logout or just ignore. 
+        // For now, ignoring network errors to avoid false logouts offline.
+      }
+    };
+    validateToken();
+  }, []);
 
   return (
     <Tabs
       screenOptions={{
-        headerShown : false,
+        headerShown: false,
         tabBarActiveTintColor: "#090040",
         tabBarInactiveTintColor: "gray",
         tabBarShowLabel: true,
         tabBarLabelStyle: {
           fontSize: 10,
-          fontWeight: "600",
           marginBottom: Platform.OS === "android" ? 4 : 0,
-          fontFamily : "FiraCode-Regular"
+          fontFamily: APP_FONT_FAMILY,
         },
         tabBarStyle: {
           position: "absolute",
@@ -55,7 +87,7 @@ export default function TabsLayout() {
           borderTopLeftRadius: 0,
           borderTopRightRadius: 0,
           height: 100,
-          opacity : 1,
+          opacity: 1,
           borderTopWidth: 0,
           elevation: 5, // Android shadow
           shadowColor: "#000", // iOS shadow
@@ -66,67 +98,67 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen
-          name="index"
-          options={{
-            title: "Home",
-            tabBarIcon: ({ color, focused }) =>
-              focused ? (
-                <Ionicons name="home-sharp" size={24} color="#090040" />
-              ) : (
-                <Ionicons name="home-outline" size={24} color="#090040" />
-              ),
-            headerShown: true,
-            headerStyle: {
-              backgroundColor: "#fff", // Light background
-              shadowColor: "#000",
-              elevation: 3, // for Android
-              shadowOffset: { width: 0, height: 2 }, // for iOS
-              shadowOpacity: 0.2,
-              shadowRadius: 3,
-            },
-            headerTitleStyle: {
-              fontSize: 36,
-              fontWeight: "bold",
-              color: "#333",
-            },
-            headerTintColor: "coral", // Back arrow or buttons color
-            headerTitleAlign: "left",
-            headerLeftContainerStyle: {
-              paddingLeft: 8,
-            },
-          }}
-        />
+        name="index"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ color, focused }) =>
+            focused ? (
+              <Ionicons name="home-sharp" size={24} color="#090040" />
+            ) : (
+              <Ionicons name="home-outline" size={24} color="#090040" />
+            ),
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: "#fff", // Light background
+            shadowColor: "#000",
+            elevation: 3, // for Android
+            shadowOffset: { width: 0, height: 2 }, // for iOS
+            shadowOpacity: 0.2,
+            shadowRadius: 3,
+          },
+          headerTitleStyle: {
+            fontFamily: APP_FONT_FAMILY,
+            fontSize: 36,
+            color: "#333",
+          },
+          headerTintColor: "coral", // Back arrow or buttons color
+          headerTitleAlign: "left",
+          headerLeftContainerStyle: {
+            paddingLeft: 8,
+          },
+        }}
+      />
       <Tabs.Screen
-          name="(events)"
-          options={{
-            title: "Events",
-            tabBarIcon: ({ color, focused }) =>
-              focused ? (
-                <Ionicons name="book-sharp" size={24} color="#090040" />
-              ) : (
-                <Ionicons name="book-outline" size={24} color="#090040" />
-              ),
-            headerShown: true,
-            headerStyle: {
-              backgroundColor: "#fff", // Light background
-              shadowColor: "#000",
-              elevation: 3, // for Android
-              shadowOffset: { width: 0, height: 2 }, // for iOS
-              shadowOpacity: 0.2,
-              shadowRadius: 3,
-            },
-            headerTitleStyle: {
-              fontSize: 36,
-              fontWeight: "bold",
-              color: "#333",
-            },
-            headerTintColor: "coral", // Back arrow or buttons color
-            headerTitleAlign: "left",
-            headerLeftContainerStyle: {
-              paddingLeft: 8,
-            },
-          }}
-        />
+        name="(events)"
+        options={{
+          title: "Events",
+          tabBarIcon: ({ color, focused }) =>
+            focused ? (
+              <Ionicons name="book-sharp" size={24} color="#090040" />
+            ) : (
+              <Ionicons name="book-outline" size={24} color="#090040" />
+            ),
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: "#fff", // Light background
+            shadowColor: "#000",
+            elevation: 3, // for Android
+            shadowOffset: { width: 0, height: 2 }, // for iOS
+            shadowOpacity: 0.2,
+            shadowRadius: 3,
+          },
+          headerTitleStyle: {
+            fontFamily: APP_FONT_FAMILY,
+            fontSize: 36,
+            color: "#333",
+          },
+          headerTintColor: "coral", // Back arrow or buttons color
+          headerTitleAlign: "left",
+          headerLeftContainerStyle: {
+            paddingLeft: 8,
+          },
+        }}
+      />
       <Tabs.Screen
         name="notification"
         options={{
@@ -137,25 +169,25 @@ export default function TabsLayout() {
             ) : (
               <Ionicons name="notifications-outline" size={24} color="#090040" />
             ),
-            headerShown: true,
-            headerStyle: {
-              backgroundColor: "#fff", // Light background
-              shadowColor: "#000",
-              elevation: 3, // for Android
-              shadowOffset: { width: 0, height: 2 }, // for iOS
-              shadowOpacity: 0.2,
-              shadowRadius: 3,
-            },
-            headerTitleStyle: {
-              fontSize: 36,
-              fontWeight: "bold",
-              color: "#333",
-            },
-            headerTintColor: "coral", // Back arrow or buttons color
-            headerTitleAlign: "left",
-            headerLeftContainerStyle: {
-              paddingLeft: 8,
-            },
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: "#fff", // Light background
+            shadowColor: "#000",
+            elevation: 3, // for Android
+            shadowOffset: { width: 0, height: 2 }, // for iOS
+            shadowOpacity: 0.2,
+            shadowRadius: 3,
+          },
+          headerTitleStyle: {
+            fontFamily: APP_FONT_FAMILY,
+            fontSize: 36,
+            color: "#333",
+          },
+          headerTintColor: "coral", // Back arrow or buttons color
+          headerTitleAlign: "left",
+          headerLeftContainerStyle: {
+            paddingLeft: 8,
+          },
         }}
       />
       <Tabs.Screen
@@ -168,25 +200,25 @@ export default function TabsLayout() {
             ) : (
               <Ionicons name="people-outline" size={24} color="#090040" />
             ),
-            headerShown: true,
-            headerStyle: {
-              backgroundColor: "#fff", // Light background
-              shadowColor: "#000",
-              elevation: 3, // for Android
-              shadowOffset: { width: 0, height: 2 }, // for iOS
-              shadowOpacity: 0.2,
-              shadowRadius: 3,
-            },
-            headerTitleStyle: {
-              fontSize: 36,
-              fontWeight: "bold",
-              color: "#333",
-            },
-            headerTintColor: "coral", // Back arrow or buttons color
-            headerTitleAlign: "left",
-            headerLeftContainerStyle: {
-              paddingLeft: 8,
-            },
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: "#fff", // Light background
+            shadowColor: "#000",
+            elevation: 3, // for Android
+            shadowOffset: { width: 0, height: 2 }, // for iOS
+            shadowOpacity: 0.2,
+            shadowRadius: 3,
+          },
+          headerTitleStyle: {
+            fontFamily: APP_FONT_FAMILY,
+            fontSize: 36,
+            color: "#333",
+          },
+          headerTintColor: "coral", // Back arrow or buttons color
+          headerTitleAlign: "left",
+          headerLeftContainerStyle: {
+            paddingLeft: 8,
+          },
         }}
       />
       <Tabs.Screen
@@ -199,25 +231,25 @@ export default function TabsLayout() {
             ) : (
               <Ionicons name="settings-outline" size={24} color="#090040" />
             ),
-             headerShown: true,
-            headerStyle: {
-              backgroundColor: "#fff", // Light background
-              shadowColor: "#000",
-              elevation: 3, // for Android
-              shadowOffset: { width: 0, height: 2 }, // for iOS
-              shadowOpacity: 0.2,
-              shadowRadius: 3,
-            },
-            headerTitleStyle: {
-              fontSize: 36,
-              fontWeight: "bold",
-              color: "#333",
-            },
-            headerTintColor: "coral", // Back arrow or buttons color
-            headerTitleAlign: "left",
-            headerLeftContainerStyle: {
-              paddingLeft: 8,
-            },
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: "#fff", // Light background
+            shadowColor: "#000",
+            elevation: 3, // for Android
+            shadowOffset: { width: 0, height: 2 }, // for iOS
+            shadowOpacity: 0.2,
+            shadowRadius: 3,
+          },
+          headerTitleStyle: {
+            fontFamily: APP_FONT_FAMILY,
+            fontSize: 36,
+            color: "#333",
+          },
+          headerTintColor: "coral", // Back arrow or buttons color
+          headerTitleAlign: "left",
+          headerLeftContainerStyle: {
+            paddingLeft: 8,
+          },
         }}
       />
     </Tabs>

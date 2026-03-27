@@ -80,7 +80,7 @@ export function useSettingsData() {
         if (!token || !userId) throw new Error("User token or ID missing");
 
         const res = await fetch(`${API_BASE_URL}/settings`, {
-          headers: { Authorization: token },
+          headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error("Failed to fetch settings");
 

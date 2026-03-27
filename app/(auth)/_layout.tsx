@@ -7,7 +7,8 @@ export default function AuthLayout() {
        <Stack.Screen name="signup" options={{headerShown: false}}/>
        <Stack.Screen name="forgetPassword" options={{headerShown: false}}/>
        <Stack.Screen name="loading" options={{headerShown: false}}/>
-     </Stack>
+       <Stack.Screen name="complete-google-profile" options={{headerShown: false}}/>
+    </Stack>
 
   )
 }

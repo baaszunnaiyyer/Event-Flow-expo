@@ -1,14 +1,16 @@
 import {useEffect, useRef} from 'react'
-import { Animated, View, StyleSheet, TouchableOpacity } from "react-native";
+import { Animated, View, StyleSheet, TouchableOpacity, type ViewStyle } from "react-native";
 import Svg, {G, Circle} from 'react-native-svg'
 import {AntDesign} from '@expo/vector-icons'
 
 type PercentageProp = {
   percentage : number
   scrollTo : any
+  /** When true, avoid flex-grow so the control fits a compact footer (e.g. signup wizard). */
+  compact?: boolean
 }
 
-export default function NextButtton({percentage, scrollTo} : PercentageProp ) {
+export default function NextButtton({ percentage, scrollTo, compact }: PercentageProp ) {
 
   const size = 128;
   const strokeWidth = 4;
@@ -51,7 +53,7 @@ export default function NextButtton({percentage, scrollTo} : PercentageProp ) {
   }, [])
 
   return (
-    <View style={styles.view}>
+    <View style={[styles.view, compact && styles.viewCompact]}>
       <Svg width={size} height={size}>
         <G rotation="-90" origin={center}>
         <Circle fill= "none" stroke="#E6E7E8" cx={center} cy={center} r={radius} strokeWidth={strokeWidth}/>
@@ -83,6 +85,11 @@ const styles = StyleSheet.create({
         alignItems: "center",
         backgroundColor : "rgba(247, 247, 247, 1)"
   },
+  viewCompact: {
+        flex: 0,
+        paddingVertical: 16,
+        minHeight: 148,
+  } satisfies ViewStyle,
   button : {
     position : 'absolute',
     backgroundColor : "#090040",

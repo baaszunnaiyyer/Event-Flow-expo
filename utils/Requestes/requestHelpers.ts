@@ -12,9 +12,9 @@ export async function handleEventResponse(
 ) {
   try {
     const token = await SecureStore.getItemAsync("userToken");
-    const res = await fetch(`${API_BASE_URL}/requestes/events/${event.event_id}`, {
+    const res = await fetch(`${API_BASE_URL}/requests/events/${event.event_id}`, {
       method: "PUT",
-      headers: { Authorization: `${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ response }),
     });
     
@@ -38,9 +38,9 @@ export async function handleTeamRequestResponse(
 ) {
   try {
     const token = await SecureStore.getItemAsync("userToken");
-    const res = await fetch(`${API_BASE_URL}/requestes/people/${request.request_id}`, {
+    const res = await fetch(`${API_BASE_URL}/requests/people/${request.request_id}`, {
       method: "PUT",
-      headers: { Authorization: `${token}`, "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify({ response }),
     });
 

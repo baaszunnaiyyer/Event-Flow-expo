@@ -1,3 +1,4 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import { API_BASE_URL } from "@/utils/constants";
 import { RegisterEventNotification } from "@/utils/Notifications/EventNotifications";
 import { Ionicons } from "@expo/vector-icons";
@@ -5,21 +6,10 @@ import DateTimePicker from "@react-native-community/datetimepicker";
 import { router } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Animated,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, Animated, Platform, Pressable, ScrollView, StyleSheet, TouchableOpacity, View, Image } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Toast from "react-native-toast-message";
+import { FadeInEnter } from "@/components/FadeInEnter";
 
 type StateType = "Todo" | "InProgress" | null;
 
@@ -148,7 +138,7 @@ export default function EventFormScreen() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: token || "",
+          Authorization: `Bearer ${token || ""}`,
         },
         body: JSON.stringify(payload),
       });
@@ -189,43 +179,47 @@ export default function EventFormScreen() {
 
   return (
     <GestureHandlerRootView style={styles.container}>
-      <ScrollView contentContainerStyle={{ paddingBottom: 120 }}>
-        <View style={styles.headingcontainer}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: 120 }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <FadeInEnter delayMs={30} duration={380} style={styles.headingcontainer}>
           <TouchableOpacity onPress={() => router.replace("./events")} style={styles.backButton}>
             <Ionicons name="arrow-back" size={28} color="#090040" />
           </TouchableOpacity>
           <Text style={styles.heading}>Create Event</Text>
-        </View>
+        </FadeInEnter>
 
-        <TextInput
-          placeholderTextColor="#999"
-          placeholder="Event Title"
-          value={form.title}
-          onChangeText={(val) => handleChange("title", val)}
-          style={styles.input}
-        />
+        <FadeInEnter delayMs={70} duration={380}>
+          <TextInput
+            placeholderTextColor="#999"
+            placeholder="Event Title"
+            value={form.title}
+            onChangeText={(val) => handleChange("title", val)}
+            style={styles.input}
+          />
+          <TextInput
+            placeholderTextColor="#999"
+            placeholder="Description"
+            value={form.description}
+            onChangeText={(val) => handleChange("description", val)}
+            style={styles.input}
+          />
+        </FadeInEnter>
 
-        <TextInput
-          placeholderTextColor="#999"
-          placeholder="Description"
-          value={form.description}
-          onChangeText={(val) => handleChange("description", val)}
-          style={styles.input}
-        />
-
-        {/* Start Time */}
-        <Pressable onPress={() => showPicker("start")} style={styles.input}>
-          <Text style={{ color: form.start_time ? "#000" : "#999" }}>
-            {form.start_time ? formatDateDisplay(form.start_time) : "Pick Start Time"}
-          </Text>
-        </Pressable>
-
-        {/* End Time */}
-        <Pressable onPress={() => showPicker("end")} style={styles.input}>
-          <Text style={{ color: form.end_time ? "#000" : "#999" }}>
-            {form.end_time ? formatDateDisplay(form.end_time) : "Pick End Time"}
-          </Text>
-        </Pressable>
+        <FadeInEnter delayMs={110} duration={380}>
+          <Pressable onPress={() => showPicker("start")} style={styles.input}>
+            <Text style={{ color: form.start_time ? "#000" : "#999" }}>
+              {form.start_time ? formatDateDisplay(form.start_time) : "Pick Start Time"}
+            </Text>
+          </Pressable>
+          <Pressable onPress={() => showPicker("end")} style={styles.input}>
+            <Text style={{ color: form.end_time ? "#000" : "#999" }}>
+              {form.end_time ? formatDateDisplay(form.end_time) : "Pick End Time"}
+            </Text>
+          </Pressable>
+        </FadeInEnter>
 
         {showDatePicker && showMode && (
           <View style={{ marginVertical: 10 }}>
@@ -239,41 +233,47 @@ export default function EventFormScreen() {
           </View>
         )}
 
-        <TextInput
-          placeholderTextColor="#999"
-          placeholder="Category (e.g. Work)"
-          value={form.category}
-          onChangeText={(val) => handleChange("category", val)}
-          style={styles.input}
-        />
+        <FadeInEnter delayMs={150} duration={380}>
+          <TextInput
+            placeholderTextColor="#999"
+            placeholder="Category (e.g. Work)"
+            value={form.category}
+            onChangeText={(val) => handleChange("category", val)}
+            style={styles.input}
+          />
+        </FadeInEnter>
 
         {!form.is_recurring && (
-          <View style={styles.stateContainer}>
-            {STATES.map((s) => (
-              <Pressable
-                key={s}
-                onPress={() => handleChange("state", s)}
-                style={[styles.stateButton, form.state === s && styles.stateButtonActive]}
-              >
-                <Text
-                  style={[styles.stateText, form.state === s && styles.stateTextActive]}
+          <FadeInEnter delayMs={185} duration={380}>
+            <View style={styles.stateContainer}>
+              {STATES.map((s) => (
+                <Pressable
+                  key={s}
+                  onPress={() => handleChange("state", s)}
+                  style={[styles.stateButton, form.state === s && styles.stateButtonActive]}
                 >
-                  {s}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+                  <Text
+                    style={[styles.stateText, form.state === s && styles.stateTextActive]}
+                  >
+                    {s}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </FadeInEnter>
         )}
 
-        <TextInput
-          placeholderTextColor="#999"
-          placeholder="Location"
-          value={form.location}
-          onChangeText={(val) => handleChange("location", val)}
-          style={styles.input}
-        />
+        <FadeInEnter delayMs={220} duration={380}>
+          <TextInput
+            placeholderTextColor="#999"
+            placeholder="Location"
+            value={form.location}
+            onChangeText={(val) => handleChange("location", val)}
+            style={styles.input}
+          />
+        </FadeInEnter>
 
-        {/* Recurring Toggle */}
+        <FadeInEnter delayMs={260} duration={380}>
         <Pressable onPress={toggleRecurring} style={styles.recurringToggle}>
           <Ionicons
             name={form.is_recurring ? "repeat" : "repeat-outline"}
@@ -363,13 +363,19 @@ export default function EventFormScreen() {
               </Pressable>
           </View>
         </Animated.View>
-
+        </FadeInEnter>
+        
+        <FadeInEnter delayMs={300} duration={400} translateFrom={18}>
+          <Image source={require("../../../assets/images/Construction.gif")} style={{width: 250, height: 200, marginBottom: -44, alignSelf: "center"}} />
+        </FadeInEnter>
         {loading ? (
           <ActivityIndicator color="#090040" size="large" style={{ marginTop: 20 }} />
         ) : (
-          <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
-            <Text style={styles.submitText}>Submit</Text>
-          </TouchableOpacity>
+          <FadeInEnter delayMs={300} duration={400} translateFrom={18}>
+            <TouchableOpacity onPress={handleSubmit} style={styles.submitButton}>
+              <Text style={styles.submitText}>Submit</Text>
+            </TouchableOpacity>
+          </FadeInEnter>
         )}
       </ScrollView>
     </GestureHandlerRootView>

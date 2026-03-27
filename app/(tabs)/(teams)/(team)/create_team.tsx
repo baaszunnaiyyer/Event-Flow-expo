@@ -1,21 +1,12 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  StyleSheet,
-  Alert,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator
-} from "react-native";
+import { View, Pressable, StyleSheet, ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Image } from "react-native";
 import { API_BASE_URL } from "@/utils/constants";
 import Toast from "react-native-toast-message";
-import * as SecureStore  from "expo-secure-store"
+import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { FadeInEnter } from "@/components/FadeInEnter";
 
 const CreateTeamScreen = () => {
   const [teamName, setTeamName] = useState("");
@@ -36,7 +27,6 @@ const CreateTeamScreen = () => {
   const handleRemoveEmail = (emailToRemove: string) => {
     setMembers(members.filter((email) => email !== emailToRemove));
   };
-
 
   // inside CreateTeamScreen component
   const [loading, setLoading] = useState(false);
@@ -64,7 +54,7 @@ const CreateTeamScreen = () => {
       const response = await fetch(`${API_BASE_URL}/teams`, {
         method: "POST",
         headers: {
-          Authorization: `${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
         body: JSON.stringify(payload),
@@ -95,74 +85,89 @@ const CreateTeamScreen = () => {
     }
   };
 
-
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
     >
-      <ScrollView contentContainerStyle={styles.inner}>
-        <View style={{flexDirection: "row", gap: 5}}>
+      <ScrollView contentContainerStyle={styles.inner} keyboardShouldPersistTaps="handled">
+        <FadeInEnter delayMs={30} duration={380} style={styles.headerRow}>
           <Pressable onPress={() => router.replace("../teams")} style={styles.backButton}>
             <Ionicons name="arrow-back" size={24} color="#090040" />
           </Pressable>
           <Text style={styles.heading}>Create a Team</Text>
-        </View>
-        <TextInput
-          placeholderTextColor="#999"
-          style={styles.input}
-          placeholder="Team Name"
-          value={teamName}
-          onChangeText={setTeamName}
-        />
+        </FadeInEnter>
 
-        <TextInput
-          placeholderTextColor="#999"
-          style={[styles.input, { height: 100 }]}
-          placeholder="Team Description"
-          value={teamDescription}
-          onChangeText={setTeamDescription}
-          multiline
-        />
-
-        <View style={styles.emailInputContainer}>
+        <FadeInEnter delayMs={95} duration={380}>
           <TextInput
             placeholderTextColor="#999"
-            style={styles.emailInput}
-            placeholder="Add member emails (press space or enter)"
-            value={emailInput}
-            onChangeText={(text) => {
-              setEmailInput(text);
-              if (text.endsWith(" ") || text.endsWith("\n")) handleAddEmail();
-            }}
-            onSubmitEditing={handleAddEmail}
-            blurOnSubmit={false}
+            style={styles.input}
+            placeholder="Team Name"
+            value={teamName}
+            onChangeText={setTeamName}
           />
-        </View>
+        </FadeInEnter>
+
+        <FadeInEnter delayMs={140} duration={380}>
+          <TextInput
+            placeholderTextColor="#999"
+            style={[styles.input, styles.inputMultiline]}
+            placeholder="Team Description"
+            value={teamDescription}
+            onChangeText={setTeamDescription}
+            multiline
+          />
+        </FadeInEnter>
+
+        <FadeInEnter delayMs={185} duration={380}>
+          <View style={styles.emailInputContainer}>
+            <TextInput
+              placeholderTextColor="#999"
+              style={styles.emailInput}
+              placeholder="Add member emails (press space or enter)"
+              value={emailInput}
+              onChangeText={(text) => {
+                setEmailInput(text);
+                if (text.endsWith(" ") || text.endsWith("\n")) handleAddEmail();
+              }}
+              onSubmitEditing={handleAddEmail}
+              blurOnSubmit={false}
+            />
+          </View>
+        </FadeInEnter>
 
         <View style={styles.emailChipsContainer}>
-          {members.map((email) => (
-            <Pressable
+          {members.map((email, index) => (
+            <FadeInEnter
               key={email}
-              style={styles.chip}
-              onPress={() => handleRemoveEmail(email)}
+              delayMs={index * 40}
+              duration={280}
+              translateFrom={0}
             >
-              <Text style={styles.chipText}>{email} ✕</Text>
-            </Pressable>
+              <Pressable style={styles.chip} onPress={() => handleRemoveEmail(email)}>
+                <Text style={styles.chipText}>{email} ✕</Text>
+              </Pressable>
+            </FadeInEnter>
           ))}
         </View>
+        
+        <FadeInEnter delayMs={55} duration={380} style={styles.lottieWrap}>
+          <Image source={require("../../../../assets/images/BusinessAnalytics.gif")} style={{width: 200, height: 200, marginBottom: -24}} />
+        </FadeInEnter>
 
-        <Pressable
-          style={[styles.button, loading && { opacity: 0.7 }]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>Create Team</Text>
-          )}
-        </Pressable>
+        <FadeInEnter delayMs={230} duration={400} translateFrom={18}>
+          <Pressable
+            style={[styles.button, loading && styles.buttonLoading]}
+            onPress={handleSubmit}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.buttonText}>Create Team</Text>
+            )}
+          </Pressable>
+        </FadeInEnter>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -172,12 +177,26 @@ export default CreateTeamScreen;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
-  inner: { padding: 20 },
+  inner: { padding: 20, paddingBottom: 32 },
+  headerRow: {
+    flexDirection: "row",
+    gap: 5,
+    alignItems: "center",
+    marginBottom: 20,
+  },
   heading: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 20,
     color: "#090040",
+    flex: 1,
+  },
+  lottieWrap: {
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  lottie: {
+    width: 200,
+    height: 140,
   },
   input: {
     borderWidth: 1,
@@ -185,6 +204,10 @@ const styles = StyleSheet.create({
     padding: 12,
     marginBottom: 16,
     borderRadius: 8,
+  },
+  inputMultiline: {
+    height: 100,
+    textAlignVertical: "top",
   },
   emailInputContainer: {
     borderWidth: 1,
@@ -219,21 +242,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 10,
   },
+  buttonLoading: {
+    opacity: 0.75,
+  },
   buttonText: {
     color: "#fff",
     fontWeight: "bold",
     fontSize: 16,
   },
   backButton: {
-  flexDirection: "row",
-  alignItems: "center",
-  marginBottom: 16,
-},
-backText: {
-  marginLeft: 6,
-  fontSize: 16,
-  color: "#090040",
-  fontWeight: "600",
-},
-
+    flexDirection: "row",
+    alignItems: "center",
+  },
 });

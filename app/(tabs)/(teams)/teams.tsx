@@ -1,3 +1,4 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import { PRIMARY_COLOR } from "@/constants/constants";
 import { API_BASE_URL } from "@/utils/constants";
 import { queueDB } from "@/utils/db/DatabaseQueue";
@@ -7,17 +8,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import React, { useCallback, useRef, useState } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  RefreshControl,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
+import { ActivityIndicator, Pressable, RefreshControl, SafeAreaView, ScrollView, StyleSheet, View,Image } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 // types.ts
@@ -37,7 +28,6 @@ interface Contact {
   gender: string;
   country: string;
 }
-
 
 function TeamsAndContacts() {
   const [activeTab, setActiveTab] = useState<"teams" | "contacts">("teams");
@@ -60,10 +50,10 @@ function TeamsAndContacts() {
 
         const [teamsRes, contactsRes] = await Promise.all([
           fetch(`${API_BASE_URL}/teams`, {
-            headers: { Authorization: `${token}` },
+            headers: { Authorization: `Bearer ${token}` },
           }),
           fetch(`${API_BASE_URL}/contacts`, {
-            headers: { Authorization: `${token}` },
+            headers: { Authorization: `Bearer ${token}` },
           }),
         ]);
 
@@ -285,10 +275,24 @@ function TeamsAndContacts() {
             ? filteredTeams.map(renderTeamCard)
             : filteredContacts.map(renderContactCard)}
           {activeTab === "teams" && filteredTeams.length === 0 && (
+            <>
             <Text style={styles.noData}>No teams found.</Text>
+            <Image
+              source={require("../../../assets/images/WalkingAlone.gif")}
+              style={{ width: 200, height: 200, alignSelf: "center", marginTop: 20 }}
+              resizeMode="contain"
+            />
+              </>
           )}
           {activeTab === "contacts" && filteredContacts.length === 0 && (
-            <Text style={styles.noData}>No contacts found.</Text>
+            <>
+            <Text style={styles.noData}>No Contacts found.</Text>
+            <Image
+              source={require("../../../assets/images/WalkingAlone.gif")}
+              style={{ width: 200, height: 200, alignSelf: "center", marginTop: 20 }}
+              resizeMode="contain"
+            />
+              </>
           )}
         </ScrollView>
       )}

@@ -1,15 +1,10 @@
+import { Text } from "@/components/AppTypography";
 import { BACKGROUND_COLOR, PRIMARY_COLOR } from '@/constants/constants';
+import { formatEventTime, formatEventTimeShort, parseUTCDate } from '@/utils/timeUtils';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import {
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { SafeAreaView, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 
 type EventItem = {
   event_id : string;
@@ -27,25 +22,10 @@ function truncateString(str: string, maxLength: number): string {
 }
 
 export default function Example({ events }: { events: EventItem[] }) {
-  // Helper function to add 5 hours to a time string
-  const addFiveHours = (timeString: string): string => {
-    const date = new Date(timeString);
-    date.setHours(date.getHours() + 5);
-    return date.toISOString();
-  };
-
-  // Helper function to format time with +5 hours
-  const formatTime = (timeString: string): string => {
-    const adjustedTime = addFiveHours(timeString);
-    const timePart = adjustedTime.split("T")[1];
-    const [hours, minutes] = timePart.split(":");
-    return `${hours} : ${minutes}`;
-  };
-
-  // Sort events by start_time (earliest first)
+  // Sort events by start_time (earliest first) — parse as UTC
   const sortedEvents = [...(events || [])].sort((a, b) => {
-    const timeA = new Date(a.start_time).getTime();
-    const timeB = new Date(b.start_time).getTime();
+    const timeA = parseUTCDate(a.start_time).getTime();
+    const timeB = parseUTCDate(b.start_time).getTime();
     return timeA - timeB;
   });
 
@@ -61,7 +41,7 @@ export default function Example({ events }: { events: EventItem[] }) {
               }}>
               <View style={styles.card}>
                 <View style={styles.cardIcon}>
-                  <Text style={styles.cardDates}>{formatTime(e.start_time)}</Text>
+                  <Text style={styles.cardDates}>{formatEventTimeShort(e.start_time)}</Text>
                 </View>
 
                 <View style={styles.cardDelimiter}>
@@ -79,7 +59,7 @@ export default function Example({ events }: { events: EventItem[] }) {
 
                     <Text style={styles.cardSubtitle}>{truncateString(e.description, 30)}</Text>
 
-                    <Text style={styles.cardDates}>End's at : {formatTime(e.end_time)}</Text>
+                    <Text style={styles.cardDates}>End's at : {formatEventTimeShort(e.end_time)}</Text>
                   </View>
 
                   <View style={styles.cardBodyAction}>

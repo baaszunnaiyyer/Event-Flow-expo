@@ -107,10 +107,10 @@ export function useDashboardData() {
           }
 
           const [eventsRes, eventReqRes, teamReqRes, teamRes] = await Promise.all([
-            fetch(`${API_BASE_URL}/events`, { headers: { Authorization: token } }),
-            fetch(`${API_BASE_URL}/requestes/events`, { headers: { Authorization: token } }),
-            fetch(`${API_BASE_URL}/requestes/people`, { headers: { Authorization: token } }),
-            fetch(`${API_BASE_URL}/teams`, { headers: { Authorization: token } })
+            fetch(`${API_BASE_URL}/events`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_BASE_URL}/requests/events`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_BASE_URL}/requests/people`, { headers: { Authorization: `Bearer ${token}` } }),
+            fetch(`${API_BASE_URL}/teams`, { headers: { Authorization: `Bearer ${token}` } })
           ]);
           if (!eventsRes.ok || !eventReqRes.ok || !teamReqRes.ok  ) {
             throw new Error("Failed to fetch one or more data sets");

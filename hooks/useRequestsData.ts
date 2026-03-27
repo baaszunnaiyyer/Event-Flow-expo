@@ -23,11 +23,11 @@ export function useRequestsData(activeTab: "event" | "team") {
 
       const endpoint =
         activeTab === "event"
-          ? `${API_BASE_URL}/requestes/events`
-          : `${API_BASE_URL}/requestes/people`;
+          ? `${API_BASE_URL}/requests/events`
+          : `${API_BASE_URL}/requests/people`;
 
       const res = await fetch(endpoint, {
-        headers: { Authorization: `${token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error(`Failed to fetch ${activeTab} requests`);
 

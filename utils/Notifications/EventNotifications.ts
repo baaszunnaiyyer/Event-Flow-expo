@@ -1,25 +1,37 @@
 import { Event } from "@/types/model";
-import * as Localization from "expo-localization";
+import { formatEventTimeShort, parseUTCDate } from "@/utils/timeUtils";
 import * as Notifications from "expo-notifications";
 
-
 /**
- * Helper — converts UTC timestamp to local device time
+ * Parse UTC timestamp into Date. new Date(utcString) handles conversion to local automatically.
  */
 function toLocalDate(utcDateString: string): Date {
-  // JS Date constructor automatically converts ISO UTC string to local time
-  return new Date(utcDateString);
+  return parseUTCDate(utcDateString);
+}
+
+/** Format milliseconds to human-readable "in Xh Ym" or "in X minutes" */
+function formatTimeUntil(ms: number): string {
+  if (ms < 0) return "past";
+  const sec = Math.floor(ms / 1000);
+  if (sec < 60) return `in ${sec}s`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `in ${min} minute${min === 1 ? "" : "s"}`;
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h < 24) return m > 0 ? `in ${h}h ${m}m` : `in ${h} hour${h === 1 ? "" : "s"}`;
+  const d = Math.floor(h / 24);
+  const hRem = h % 24;
+  return hRem > 0 ? `in ${d}d ${hRem}h` : `in ${d} day${d === 1 ? "" : "s"}`;
 }
 
 /**
- * Get device timezone name safely
+ * Get device timezone via Intl (built-in, no extra packages)
  */
-async function getDeviceTimezone(): Promise<string> {
+function getDeviceTimezone(): string {
   try {
-    const calendars = Localization.getCalendars?.();
-    return calendars?.[0]?.timeZone ?? "Unknown";
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   } catch {
-    return "Unknown";
+    return "UTC";
   }
 }
 
@@ -194,8 +206,7 @@ export async function RegisterEventNotifications(events: Event[]) {
   
   await Notifications.cancelAllScheduledNotificationsAsync();
 
-  const deviceTimeZone = await getDeviceTimezone();
-  console.log("📅 Device Timezone:", deviceTimeZone);
+  console.log("📅 Device Timezone:", getDeviceTimezone());
 
   for (const ev of events) {
     await scheduleEventNotifications(ev);
@@ -240,14 +251,15 @@ async function scheduleEventNotifications(ev: Event) {
           const sec = Math.floor(inms / 1000);
 
           if (inms >= 0) {
+            const localTimeStr = formatEventTimeShort(occurrenceDate.toISOString());
             console.log(
-              `📌 Scheduling "${ev.title}" - ${reminder.label} at ${triggerDate.toLocaleString()} (occurrence: ${occurrenceDate.toLocaleDateString()})`
+              `📌 Scheduling "Event Started!" for "${ev.title}"\n   ⏱️ Triggers ${formatTimeUntil(inms)} at ${triggerDate.toLocaleString()}`
             );
 
             const notificationId = await Notifications.scheduleNotificationAsync({
               content: {
                 title: "🎉 Event Started!",
-                body: `${ev.title} has started!`,
+                body: `Your event starts at ${localTimeStr}.`,
                 data: {
                   event_id: ev.event_id,
                   occurrence_date: occurrenceDate.toISOString(),
@@ -265,15 +277,18 @@ async function scheduleEventNotifications(ev: Event) {
       }
     } else {
       // Handle one-time events (progressive) - schedule all future reminders
+      // Trigger times use new Date(utcString) — JS Date handles UTC→local automatically
       const progressiveReminders = [
         { label: "1 month before", ms: 30 * 24 * 60 * 60 * 1000 },
         { label: "1 week before", ms: 7 * 24 * 60 * 60 * 1000 },
         { label: "1 day before", ms: 24 * 60 * 60 * 1000 },
         { label: "30 minutes before", ms: 30 * 60 * 1000 },
+        { label: "15 minutes before", ms: 15 * 60 * 1000 },
         { label: "Event started", ms: 0 },
       ];
 
       const eventLocalDate = toLocalDate(ev.start_time);
+      const localTimeStr = formatEventTimeShort(ev.start_time);
 
       if (eventLocalDate <= now) {
         return;
@@ -286,18 +301,33 @@ async function scheduleEventNotifications(ev: Event) {
         const sec = Math.floor(inms / 1000);
 
         if (inms >= 0) {
-          // console.log(
-          //   `📌 Scheduling "${ev.title}" - ${reminder.label} at ${triggerDate.toLocaleString()}`
-          // );
+          const is15Min =
+            reminder.ms === 15 * 60 * 1000;
+          const isEventStarted = reminder.ms === 0;
 
-          const notificationId = await Notifications.scheduleNotificationAsync({
+          const notifName = isEventStarted ? "Event Started!" : `Reminder (${reminder.label})`;
+          console.log(
+            `📌 Scheduling "${notifName}" for "${ev.title}"\n   ⏱️ Triggers ${formatTimeUntil(inms)} at ${triggerDate.toLocaleString()}`
+          );
+
+          let title: string;
+          let body: string;
+
+          if (isEventStarted) {
+            title = "🎉 Event Started!";
+            body = `Your event ${ev.title} has started at ${localTimeStr}.`;
+          } else if (is15Min) {
+            title = `Reminder: ${ev.title}`;
+            body = `Reminder: Your event starts in 15 minutes at ${localTimeStr}.`;
+          } else {
+            title = `Reminder: ${ev.title}`;
+            body = `${ev.title} is happening ${reminder.label}. Event starts at ${localTimeStr}.`;
+          }
+
+          await Notifications.scheduleNotificationAsync({
             content: {
-              title:
-                reminder.ms === 0 ? "🎉 Event Started!" : `Reminder: ${ev.title}`,
-              body:
-                reminder.ms === 0
-                  ? `${ev.title} has started!`
-                  : `${ev.title} is happening ${reminder.label}.`,
+              title,
+              body,
               data: { event_id: ev.event_id },
             },
             trigger: {
@@ -305,8 +335,6 @@ async function scheduleEventNotifications(ev: Event) {
               seconds: sec,
             },
           });
-
-          // console.log("✅ Scheduled notification ID:", notificationId);
         }
       }
     }

@@ -1,14 +1,6 @@
+import { Text } from "@/components/AppTypography";
 import React, { useState } from 'react';
-import {
-  Dimensions,
-  StyleSheet,
-  Text,
-  Vibration,
-  View,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  Pressable,
-} from 'react-native';
+import { Dimensions, StyleSheet, Vibration, View, TouchableOpacity, TouchableWithoutFeedback, Pressable } from "react-native";
 import {
   PanGestureHandler,
   PanGestureHandlerGestureEvent,
@@ -40,7 +32,9 @@ interface EventItemCardProps
 }
 
 const LIST_ITEM_HEIGHT = 100;
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+/** Large max height so the row sizes to the card; collapse animates this to 0 (see rContainerStyle). */
+const EXPANDED_MAX_HEIGHT = 9999;
 const TRANSLATE_X_THRESHOLD = -SCREEN_WIDTH * 0.2;
 const RIGHT_SWIPE_THRESHOLD = SCREEN_WIDTH * 0.2;
 
@@ -56,7 +50,7 @@ const EventItemCard: React.FC<EventItemCardProps> = ({
 }) => {
   const [showDelete, setShowDelete] = useState(false);
   const translateX = useSharedValue(0);
-  const itemHeight = useSharedValue(LIST_ITEM_HEIGHT);
+  const itemHeight = useSharedValue(EXPANDED_MAX_HEIGHT);
   const opacity = useSharedValue(1);
   const scale = useSharedValue(1);
   const margin = useSharedValue(1);
@@ -128,9 +122,11 @@ const EventItemCard: React.FC<EventItemCardProps> = ({
   };
 
   const rContainerStyle = useAnimatedStyle(() => ({
-    height: itemHeight.value,
+    maxHeight: itemHeight.value,
     opacity: opacity.value,
     marginVertical: 10,
+    overflow: "hidden",
+    borderRadius: 8,
   }));
 
   const limitWords = (text: string, wordLimit: number) => {
@@ -141,13 +137,14 @@ const EventItemCard: React.FC<EventItemCardProps> = ({
 
   return (
     <Animated.View style={[styles.container, rContainerStyle]}>
-      {/* Swipe Icons */}
-      <Animated.View style={[styles.iconContainer, styles.leftIcon]}>
-        <Ionicons name="sparkles-outline" size={30} color="white" />
-      </Animated.View>
-      <Animated.View style={[styles.iconContainer, styles.rightIcon]}>
-        <Ionicons name="cog-outline" size={30} color="white" />
-      </Animated.View>
+      <View style={styles.swipeRow}>
+        {/* Swipe backgrounds — height follows row (card) so they never extend past the white card */}
+        <Animated.View style={[styles.iconContainer, styles.leftIcon]} pointerEvents="none">
+          <Ionicons name="sparkles-outline" size={30} color="white" />
+        </Animated.View>
+        <Animated.View style={[styles.iconContainer, styles.rightIcon]} pointerEvents="none">
+          <Ionicons name="cog-outline" size={30} color="white" />
+        </Animated.View>
 
       <LongPressGestureHandler onHandlerStateChange={handleLongPress} minDurationMs={500}>
         <Animated.View style={{ width: '100%' }}>
@@ -197,6 +194,7 @@ const EventItemCard: React.FC<EventItemCardProps> = ({
           )}
         </Animated.View>
       </LongPressGestureHandler>
+      </View>
     </Animated.View>
   );
 };
@@ -205,12 +203,16 @@ export default EventItemCard;
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: "center"
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  swipeRow: {
+    position: "relative",
+    width: "100%",
   },
   card: {
-    width: '99%',
+    width: "99%",
     minHeight: LIST_ITEM_HEIGHT,
     backgroundColor: '#fff',
     borderRadius: 8,
@@ -256,21 +258,21 @@ const styles = StyleSheet.create({
     color: '#444',
   },
   iconContainer: {
-    position: 'absolute',
+    position: "absolute",
     width: LIST_ITEM_HEIGHT * 1.5,
-    height: LIST_ITEM_HEIGHT * 1.1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 8,
     top: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    borderRadius: 8,
   },
   leftIcon: {
-    left: '5%',
-    backgroundColor: '#06b1ebff',
+    left: "5%",
+    backgroundColor: "#06b1ebff",
   },
   rightIcon: {
-    right: '5%',
-    backgroundColor: '#b43f11ff',
+    right: "5%",
+    backgroundColor: "#b43f11ff",
   },
   deletePopup: {
     position: 'absolute',

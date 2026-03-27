@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/utils/constants";
+import { APP_FONT_FAMILY } from "@/utils/constants";
 import { getAllEvents } from "@/utils/db/Events";
 import { initDatabase } from "@/utils/db/schema";
 import { RegisterEventNotifications } from "@/utils/Notifications/EventNotifications";
@@ -12,7 +12,7 @@ import { Stack } from "expo-router";
 import * as SecureStore from "expo-secure-store";
 import { SQLiteProvider } from "expo-sqlite";
 import { Suspense, useEffect, useLayoutEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import Toast, { BaseToast, ErrorToast } from "react-native-toast-message";
 
 Notifications.setNotificationHandler({
@@ -28,20 +28,15 @@ Notifications.setNotificationHandler({
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    'FiraCode-Regular': require('../assets/fonts/FiraCode-Regular.ttf'),
-    'FiraCode-Bold': require('../assets/fonts/FiraCode-Bold.ttf'),
+    [APP_FONT_FAMILY]: require("../assets/fonts/ChangaOne-Regular.ttf"),
   });
 
-  const [initialRoute, setInitialRoute] = useState<string | null>(null);
+  const [initialRoute, setInitialRoute] = useState<string | null>("(tabs)");
   const [loaded, setLoaded] = useState<boolean>(false);
   const [dbInitialized, setDbInitialized] = useState<boolean>(false);
-  const [text, setText] = useState<string>("Authenticating Your Credentials");
 
-  useEffect(()=>{
-    setTimeout(()=>{
-      setText('Still loading... please check your internet connection.')
-    }, 10000)
-  })
+
+
 
   // Initialize database ONCE when component mounts
   useEffect(() => {
@@ -67,7 +62,7 @@ export default function RootLayout() {
     };
   }, []); // Only run once on mount
 
-  
+
   useLayoutEffect(() => {
     const app = getApp(); // required for modular API
     const messaging = getMessaging(app);
@@ -92,48 +87,23 @@ export default function RootLayout() {
 
   useEffect(() => {
     const checkInitialRoute = async () => {
-
-      
       try {
         const hasOnboarded = await AsyncStorage.getItem("hasOnboarded");
         const token = await SecureStore.getItemAsync("userToken");
-        const userId = await SecureStore.getItemAsync("userId");
 
-        let isTokenValid = false;
-
-        if (token) {
-          const res = await fetch(`${API_BASE_URL}/auth/validate-token`, {
-            method: "GET",
-            headers: {
-              Authorization: `${token}`,
-            },
-          });
-
-          if (res.ok) {
-            const data = await res.json();
-            if (data.message === "Token is valid") {
-              isTokenValid = true;
-            }
-          } else {
-            await SecureStore.deleteItemAsync("userToken");
-          }
-        }
-        
+        // Optimistic check: If we have a token, go to tabs. 
+        // Validation happens in the background in (tabs)/_layout.tsx
         if (!hasOnboarded) {
           setInitialRoute("(onboarding)");
-        } else if (isTokenValid) {
+        } else if (token) {
           setInitialRoute("(tabs)");
-          
-          // Schedule notifications for all events when app initializes
-          try {
-            const eventsResult = await getAllEvents();
+
+          // Schedule notifications (keep this as it doesn't block UI much, or move to background)
+          getAllEvents().then((eventsResult) => {
             if (eventsResult.success && eventsResult.data) {
-              await RegisterEventNotifications(eventsResult.data);
-              console.log("✅ Scheduled notifications for all events on app init");
+              RegisterEventNotifications(eventsResult.data).catch(console.error);
             }
-          } catch (error) {
-            console.error("❌ Error scheduling notifications on init:", error);
-          }
+          }).catch(console.error);
         } else {
           setInitialRoute("(auth)");
         }
@@ -145,15 +115,14 @@ export default function RootLayout() {
       }
     };
 
-    checkInitialRoute();    
+    checkInitialRoute();
   }, []);
 
   // Wait for database initialization before rendering app
   if (!initialRoute || !fontsLoaded || !loaded || !dbInitialized) {
     return (
       <View style={styles.loaderContainer}>
-        <ActivityIndicator size="large" color="#090040"/>
-        <Text style={{fontWeight: '800'}}>{text}</Text>
+        <ActivityIndicator size="large" color="#090040" />
       </View>
     );
   }
@@ -199,11 +168,12 @@ const toastConfig = {
         borderRadius: 10,
       }}
       text1Style={{
+        fontFamily: APP_FONT_FAMILY,
         fontSize: 16,
-        fontWeight: "bold",
         color: "#155724",
       }}
       text2Style={{
+        fontFamily: APP_FONT_FAMILY,
         fontSize: 14,
         color: "#155724",
       }}
@@ -220,11 +190,12 @@ const toastConfig = {
         borderRadius: 10,
       }}
       text1Style={{
+        fontFamily: APP_FONT_FAMILY,
         fontSize: 16,
-        fontWeight: "bold",
         color: "#721c24",
       }}
       text2Style={{
+        fontFamily: APP_FONT_FAMILY,
         fontSize: 14,
         color: "#721c24",
       }}

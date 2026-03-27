@@ -1,4 +1,5 @@
-import { Text, View, StyleSheet, Image, ImageSourcePropType , useWindowDimensions  } from "react-native";
+import { Text } from "@/components/AppTypography";
+import { View, StyleSheet, Image, ImageSourcePropType, useWindowDimensions } from "react-native";
 import { Link } from "expo-router";
 
 type Slide = {
@@ -46,13 +47,12 @@ const styles = StyleSheet.create({
     paddingLeft : "10%",
     paddingRight : "10%",
     paddingTop : "10%",
-    fontFamily : "Roboto_400Regular"
   },
-  description :{
-    fontWeight : '500',
-    color : '#090040',
-    opacity : 0.4,
-    textAlign: 'center',
-    paddingHorizontal : 64,
-  }
+  description: {
+    fontWeight: "500",
+    color: "#090040",
+    opacity: 0.4,
+    textAlign: "center",
+    paddingHorizontal: 64,
+  },
 })

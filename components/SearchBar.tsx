@@ -1,5 +1,6 @@
+import { TextInput } from "@/components/AppTypography";
 import React from "react";
-import { View, TextInput, Pressable, StyleSheet } from "react-native";
+import { View, Pressable, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
 const SearchBar = ({

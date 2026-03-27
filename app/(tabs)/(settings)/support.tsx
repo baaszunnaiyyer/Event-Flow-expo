@@ -1,14 +1,8 @@
+import { Text } from "@/components/AppTypography";
 import { Feather } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React from "react";
-import {
-  Linking,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Linking, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native";
 
 const SupportScreen = () => {
   const openEmail = () => {

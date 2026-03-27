@@ -1,17 +1,7 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import { useLocalSearchParams, router } from "expo-router";
 import { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  TouchableOpacity,
-  Alert,
-  TextInput,
-  KeyboardAvoidingView,
-  Platform
-} from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from "react-native";
 import Toast from "react-native-toast-message";
 import * as SecureStore from "expo-secure-store";
 import { Ionicons } from "@expo/vector-icons";
@@ -84,7 +74,6 @@ const BranchDetails = () => {
   const [branchDescription , setBranchDescription] = useState<string>("")
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
 
-
   useFocusEffect(
     useCallback(() => {
       const fetchLocalBranch = async () =>{
@@ -146,7 +135,7 @@ const BranchDetails = () => {
             `${API_BASE_URL}/teams/${team_id}/${branch_id}`,
             {
               headers: {
-                Authorization: `${token}`,
+                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json",
               },
             }
@@ -195,7 +184,7 @@ const BranchDetails = () => {
               `${API_BASE_URL}/teams/${team_id}/${branch_id}`,
               {
                 method: "DELETE",
-                headers: { Authorization: `${token}` },
+                headers: { Authorization: `Bearer ${token}` },
               }
             );
 
@@ -236,7 +225,7 @@ const BranchDetails = () => {
         const res = await fetch(`${API_BASE_URL}/teams/${team_id}/${branch_id}`, {
             method : 'PUT',
             headers : {
-                Authorization : `${token}`,
+                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json"
             },
             body : JSON.stringify({name : branchName, description : branchDescription})
@@ -266,7 +255,7 @@ const BranchDetails = () => {
       const res = await fetch(`${API_BASE_URL}/teams/${team_id}/${branch_id}/members`, {
         method : "POST",
         headers : {
-          Authorization : `${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json"
         },
         body : JSON.stringify({email : mail})
@@ -321,7 +310,6 @@ const BranchDetails = () => {
             <TextInput style={styles.input} value={branchName} onChangeText={setBranchName}/>
             </>
         )}
-
 
         <Text style={styles.label}>Description</Text>
         {!isEditing ?  (<Text style={styles.value}>{branch.branch_description}</Text>) : (

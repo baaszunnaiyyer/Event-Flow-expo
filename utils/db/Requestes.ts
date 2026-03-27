@@ -45,7 +45,7 @@ export async function deleteEventRequest(event_id: string, user_id: string) {
 
 export async function getJoinRequest(user_id : string){
     try {
-        const result = await db.getAllAsync("SELECT * FORM join_requests WHERE user_id = ?", [user_id])
+        const result = await db.getAllAsync("SELECT * FROM join_requests WHERE user_id = ?", [user_id])
         if (!result) {
             return { success: false, error: "Event Requests Not Found" };
         }

@@ -1,3 +1,4 @@
+import { APP_FONT_FAMILY } from "@/utils/constants";
 import React, { useEffect } from "react";
 import Svg, {
   Defs,
@@ -165,7 +166,7 @@ const HierarchyChart: React.FC<HierarchyChartProps> = ({ data }) => {
               y={node.y}
               fontSize="12"
               fill="white"
-              fontFamily="FiraCode-Bold"
+              fontFamily={APP_FONT_FAMILY}
               textAnchor="middle"
               alignmentBaseline="middle"
             >

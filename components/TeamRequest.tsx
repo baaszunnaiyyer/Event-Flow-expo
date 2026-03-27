@@ -1,5 +1,6 @@
+import { Text } from "@/components/AppTypography";
 import React from 'react';
-import { Dimensions, StyleSheet, Text, Vibration } from 'react-native';
+import { Dimensions, StyleSheet, Vibration } from "react-native";
 import {
   PanGestureHandler,
   PanGestureHandlerGestureEvent,

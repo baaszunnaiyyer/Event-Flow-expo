@@ -1,14 +1,6 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import React, { useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  View,
-  TextInput,
-  Pressable,
-  Vibration,
-} from "react-native";
+import { Alert, ActivityIndicator, StyleSheet, View, Pressable, Image, Vibration } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { GestureHandlerRootView, RefreshControl, ScrollView } from "react-native-gesture-handler";
 import { API_BASE_URL } from "@/utils/constants";
@@ -65,7 +57,6 @@ const formatEvent = (event: any): EventItem => ({
   },
 });
 
-
 export default function HomeScreen() {
   const [search, setSearch] = useState("");
   const [events, setEvents] = useState<EventItem[]>([]);
@@ -84,7 +75,7 @@ export default function HomeScreen() {
       }
 
       const res = await fetch(`${API_BASE_URL}/events`, {
-        headers: { Authorization: `${token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) throw new Error("Failed to fetch events");
 
@@ -103,8 +94,6 @@ export default function HomeScreen() {
       console.warn("❌ Failed to fetch or sync events:", error);
     }
   };
-
-
 
   const onRefresh = async () => {
     try {
@@ -189,7 +178,6 @@ export default function HomeScreen() {
     }, [tab])
   );
 
-
   const toBackendState = (state: EventState): string => {
     switch (state) {
       case "InProgress":
@@ -208,14 +196,13 @@ export default function HomeScreen() {
     return ` (${count})`;
   };
 
-
   const updateEventState = async (eventId: string, newState: EventState) => {
     const token = await SecureStore.getItemAsync("userToken");
     const res = await fetch(`${API_BASE_URL}/events/${eventId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `${token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ state: toBackendState(newState) }),
     });
@@ -230,7 +217,6 @@ export default function HomeScreen() {
 
     return updated;
   };
-
 
   const handleSwipeLeft = async (event: EventItem) => {
     const nextState: EventState | null =
@@ -271,7 +257,7 @@ export default function HomeScreen() {
       const response = await fetch(`${API_BASE_URL}/events/${event.event_id}`, {
         method: "DELETE",
         headers: {
-          Authorization: `${token}`, // Prefix with Bearer if your backend expects it
+          Authorization: `Bearer ${token}`, // Prefix with Bearer if your backend expects it
           "Content-Type": "application/json",
         },
       });      
@@ -301,7 +287,6 @@ export default function HomeScreen() {
       )
     }
   };
-
 
   const handleSwipeRight = async (event: EventItem) => {
     const nextState: EventState | null =
@@ -432,11 +417,14 @@ export default function HomeScreen() {
           >
             <View style={{ paddingHorizontal: 2, paddingBottom: 20 }}>
               {filtered.length === 0 ? (
+                <>
                 <Text style={styles.empty}>
                   {eventTypeTab === "Progressive"
                     ? `No events in ${tab === "InProgress" ? "In Progress" : tab} list.`
                     : "No recursive events"}
                 </Text>
+                <Image source={require("../../../assets/images/EmptyBox.gif")} style={{ width: 200, height: 200, alignSelf: "center", marginTop: 20, opacity: 0.6 }} resizeMode="contain" />
+                </>
               ) : eventTypeTab === "Progressive" ? (
                 // ✅ Progressive list (EventCards)
                 filtered.map((event) => (

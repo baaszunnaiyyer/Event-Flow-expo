@@ -1,13 +1,6 @@
+import { Text } from "@/components/AppTypography";
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-  Alert,
-  Pressable,
-} from "react-native";
+import { View, StyleSheet, ScrollView, ActivityIndicator, Alert, Pressable } from "react-native";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { API_BASE_URL } from "@/utils/constants";
@@ -78,7 +71,7 @@ useEffect(() => {
 
       const res = await fetch(`${API_BASE_URL}/contacts/${userId}`, {
         method: "GET",
-        headers: { Authorization: `${token}` },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) throw new Error("Not found");
@@ -107,7 +100,6 @@ useEffect(() => {
   };
 }, [userId]);
 
-
   const Delete = async () => {
     try{
         const token = await SecureStore.getItemAsync("userToken")
@@ -115,7 +107,7 @@ useEffect(() => {
             {
                 method : "DELETE",
                 headers : {
-                    Authorization : `${token}`
+                    Authorization: `Bearer ${token}`
                 }
             }
         )

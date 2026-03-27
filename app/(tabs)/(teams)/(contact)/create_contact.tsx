@@ -1,19 +1,20 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import React, { useState } from "react";
 import {
   View,
-  Text,
-  TextInput,
   StyleSheet,
   Pressable,
-  Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
 } from "react-native";
 import { API_BASE_URL } from "@/utils/constants";
 import Toast from "react-native-toast-message";
-import * as SecureStore from "expo-secure-store"
+import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import LottieView from "lottie-react-native";
+import { FadeInEnter } from "@/components/FadeInEnter";
 
 const CreateContactScreen = () => {
   const [email, setEmail] = useState("");
@@ -34,7 +35,7 @@ const CreateContactScreen = () => {
       const response = await fetch(`${API_BASE_URL}/contacts`, {
         method: "POST",
         headers: {
-          Authorization : `${token}`,
+          Authorization : `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ email }),
@@ -68,14 +69,22 @@ const CreateContactScreen = () => {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
       style={styles.container}
     >
-      <View style={styles.content}>
-        <View style={styles.top}>
-          <View style={{flexDirection: 'row', gap : 5}}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <FadeInEnter delayMs={40} duration={400} style={styles.top}>
+          <View style={styles.headerRow}>
             <Pressable onPress={() => router.replace("../teams")} style={styles.backButton}>
               <Ionicons name="arrow-back" size={24} color="#090040" />
             </Pressable>
             <Text style={styles.heading}>Add a New Contact</Text>
           </View>
+        </FadeInEnter>
+
+        <FadeInEnter delayMs={100} duration={400}>
           <TextInput
             placeholder="Enter Email Address"
             placeholderTextColor="#888"
@@ -85,23 +94,26 @@ const CreateContactScreen = () => {
             value={email}
             onChangeText={setEmail}
           />
-        </View>
+        </FadeInEnter>
 
-        <View style={styles.infoSection}>
+        <FadeInEnter delayMs={160} duration={480} translateFrom={0} style={styles.infoSection}>
+          <Text style={styles.infoLabel}>Privacy note</Text>
           <Text style={styles.infoText}>
-            By initiating the addition of a contact through their email address,
-            you are consenting to share visibility into your professional availability matrix, 
-            work-life synchronization parameters, and select metadata regarding private engagements 
-            and schedule configurations. Please be advised that although private and collaborative events 
-            retain restricted access, certain personal availability indicators and non-sensitive metadata 
-            will be visible to the approved contact. This level of transparency is designed to foster 
-            streamlined collaboration, better contextual planning, and enhance mutual productivity 
-            without infringing upon personal scheduling sanctity or sensitive interpersonal engagements.
+          By adding a contact via email, you consent to sharing your availability, work schedule, and select metadata about private engagements. While private and collaborative events remain restricted, some availability indicators and non-sensitive metadata will be visible to the approved contact — enabling better collaboration and planning without compromising your personal scheduling privacy.
           </Text>
-        </View>
-      </View>
+        </FadeInEnter>
 
-      <View style={styles.bottom}>
+        <FadeInEnter delayMs={200} duration={400} style={{ ...styles.lottieWrap, marginTop: 60 }}>
+          <LottieView
+            source={require("../../../../assets/images/Loading 40 _ Paperplane.json")}
+            autoPlay
+            loop
+            style={styles.lottie}
+          />
+        </FadeInEnter>
+      </ScrollView>
+
+      <FadeInEnter delayMs={220} duration={400} translateFrom={20} style={styles.bottom}>
         <Pressable
           style={[
             styles.button,
@@ -114,7 +126,7 @@ const CreateContactScreen = () => {
             {loading ? "Sending..." : "Send Contact Request"}
           </Text>
         </Pressable>
-      </View>
+      </FadeInEnter>
     </KeyboardAvoidingView>
   );
 };
@@ -125,20 +137,36 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#FAFAFA",
-    paddingHorizontal: 20,
     paddingTop: 30,
   },
-  content: {
+  scroll: {
     flex: 1,
   },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 200,
+  },
   top: {
-    marginBottom: 20,
+    marginBottom: 8,
+  },
+  lottieWrap: {
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  lottie: {
+    width: 200,
+    height: 140,
+  },
+  headerRow: {
+    flexDirection: "row",
+    gap: 5,
+    alignItems: "center",
   },
   heading: {
     fontSize: 24,
     fontWeight: "700",
     color: "#222",
-    marginBottom: 12,
+    flex: 1,
   },
   input: {
     height: 50,
@@ -150,16 +178,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   infoSection: {
-    flex: 1,
-    marginTop: 20,
-    backgroundColor: "#FAFAFA", // Same as container for consistency
-    padding: 20,
+    marginTop: 16,
+    backgroundColor: "#F3F3F7",
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(9, 0, 64, 0.06)",
+  },
+  infoLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#090040",
+    marginBottom: 8,
+    letterSpacing: 0.3,
   },
   infoText: {
-    fontSize: 15,
-    color: "#444",
-    lineHeight: 24,
-    textAlign: "justify",
+    fontSize: 14,
+    color: "#555",
+    lineHeight: 22,
   },
   bottom: {
     position: "absolute",
@@ -182,8 +218,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   backButton: {
-  flexDirection: "row",
-  alignItems: "center",
-  marginBottom: 16,
-},
+    flexDirection: "row",
+    alignItems: "center",
+  },
 });

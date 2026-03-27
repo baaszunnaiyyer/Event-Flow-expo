@@ -1,7 +1,28 @@
 import { startOfWeek } from 'date-fns';
+import { Dimensions, type ImageStyle } from 'react-native';
 
 export const BACKGROUND_COLOR = 'rgba(250,250,250,1)';
-export const PRIMARY_COLOR = "#090040"
+export const PRIMARY_COLOR = "#090040";
+
+/** Hero illustration: offset from top so login & signup match. */
+export const AUTH_HERO_MARGIN_TOP = 100;
+
+/** Space below paginator + next control (onboarding & signup wizard). */
+export const AUTH_PAGINATOR_FOOTER_PADDING_BOTTOM = 50;
+
+/** Extra top inset for auth form / wizard step scroll content. */
+export const AUTH_FORM_CONTENT_PADDING_TOP = 24;
+
+/** Same hero sizing on login and signup (avoids % height quirks inside ScrollView). */
+export function getAuthHeroImageStyle(): ImageStyle {
+  const { width, height } = Dimensions.get('window');
+  return {
+    width: width * 0.65,
+    height: height * 0.2,
+    marginTop: AUTH_HERO_MARGIN_TOP,
+    marginBottom: 100,
+  };
+}
 
 // Calculate the date of the Monday from three weeks ago
 const mondayFromThreeWeeksAgo = startOfWeek(

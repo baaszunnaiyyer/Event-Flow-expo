@@ -1,16 +1,6 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import React, { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  Image,
-} from "react-native";
+import { View, TouchableOpacity, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Image } from "react-native";
 import { router } from "expo-router";
 import { API_BASE_URL } from "../../utils/constants";
 import Toast from "react-native-toast-message";

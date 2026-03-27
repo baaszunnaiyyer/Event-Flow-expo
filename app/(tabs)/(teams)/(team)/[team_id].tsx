@@ -1,15 +1,7 @@
+import { Text, TextInput } from "@/components/AppTypography";
 import { RouteProp, useRoute } from "@react-navigation/native";
 import { useEffect, useRef, useState } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-  TouchableOpacity,
-  Alert,
-  TextInput,
-} from "react-native";
+import { View, StyleSheet, ActivityIndicator, ScrollView, TouchableOpacity, Alert } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "@/utils/constants";
 import Toast from "react-native-toast-message";
@@ -91,7 +83,6 @@ function buildHierarchyDataFromBranches(
   return levels;
 }
 
-
 type RootStackParamList = {
   TeamDetails: { team_id: string };
 };
@@ -155,7 +146,6 @@ const Team = () => {
   const { team_id } = route.params;
   const [selectedView, setSelectedView] = useState<"tree" | "cards">("tree");
 
-
   useFocusEffect(
     useCallback(() => {
       let TeamisDone = false;
@@ -183,7 +173,7 @@ const Team = () => {
           const res = await fetch(`${API_BASE_URL}/teams/${team_id}`, {
             method: "GET",
             headers: {
-              Authorization: `${token}`,
+              Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
           });
@@ -242,7 +232,7 @@ const Team = () => {
           const token = await SecureStore.getItemAsync("userToken");
           const res = await fetch(`${API_BASE_URL}/teams/${team_id}/members`, {
             method: "GET",
-            headers: { Authorization: `${token}` },
+            headers: { Authorization: `Bearer ${token}` },
           });
 
           if (!res.ok) {
@@ -297,7 +287,6 @@ const Team = () => {
     }, [team_id, editing]) // dependencies
   );
 
-
   const onEdit = () => {
     Toast.show({ type: "info", text1: "Editing Enabled" });
     setEditing(true)
@@ -310,7 +299,7 @@ const Team = () => {
         const res = await fetch(`${API_BASE_URL}/teams/${team_id}`,{
             method : "PUT",
             headers : {
-                Authorization : `${token}`,
+                Authorization: `Bearer ${token}`,
                 "Content-Type": "application/json"
             },
             body : JSON.stringify({
@@ -358,7 +347,7 @@ const Team = () => {
               const res = await fetch(`${API_BASE_URL}/teams/${team_id}`, {
                 method: "DELETE",
                 headers: {
-                  Authorization: `${token}`,
+                  Authorization: `Bearer ${token}`,
                 },
               });
 

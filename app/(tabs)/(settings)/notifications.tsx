@@ -1,5 +1,6 @@
+import { Text } from "@/components/AppTypography";
 import React, { useEffect, useState } from "react";
-import { View, Text, Switch, StyleSheet, TouchableOpacity, Alert } from "react-native";
+import { View, Switch, StyleSheet, TouchableOpacity, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
