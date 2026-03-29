@@ -5,7 +5,7 @@ export const BACKGROUND_COLOR = 'rgba(250,250,250,1)';
 export const PRIMARY_COLOR = "#090040";
 
 /** Hero illustration: offset from top so login & signup match. */
-export const AUTH_HERO_MARGIN_TOP = 100;
+export const AUTH_HERO_MARGIN_TOP = 80;
 
 /** Space below paginator + next control (onboarding & signup wizard). */
 export const AUTH_PAGINATOR_FOOTER_PADDING_BOTTOM = 50;

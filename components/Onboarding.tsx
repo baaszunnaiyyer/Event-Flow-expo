@@ -83,7 +83,9 @@ const styles = StyleSheet.create({
   view: {
     flex: 1,
     justifyContent: "flex-start",
-    alignItems: "center",
+    alignItems: "stretch",
+    alignSelf: "stretch",
+    width: "100%",
     backgroundColor: "rgba(247, 247, 247, 1)",
   },
   slideArea: {

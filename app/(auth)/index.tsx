@@ -396,6 +396,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#777",
     fontSize: 14,
+    marginBottom: 20,
   },
   linkText: {
     color: PRIMARY_COLOR,
